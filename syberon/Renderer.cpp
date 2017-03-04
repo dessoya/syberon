@@ -226,7 +226,7 @@ void Renderer::switchToFullscreen() {
 		}
 
 	}
-	PostMessage(_hwnd, 0x420, 0, 0);
+	PostMessage(_hwnd, 0x400, 0, 0);
 }
 
 
@@ -309,7 +309,7 @@ void Renderer::disableFullScreen() {
 	_height = _windowPos.rcNormalPosition.bottom - _windowPos.rcNormalPosition.top;
 	createSurfaces();
 
-	PostMessage(_hwnd, 0x420, 0, 0);
+	PostMessage(_hwnd, 0x400, 0, 0);
 }
 
 /*
@@ -556,6 +556,7 @@ DWORD Renderer::threadProc() {
 				*/
 
 				_fps = (int)pc->periodsPerSecond;
+				_frameTime = (int)pc->msCurrentPeriod;
 
 				this->checkSurfaces();
 				this->draw();
@@ -681,6 +682,14 @@ void Renderer::flip() {
 
 		SetRect(&rcSrc, 0, 0, _width, _height);
 
+		if (_width < 2 || _height < 2) {
+			return;
+		}
+
+		if (rcDest.right < 0 || rcDest.bottom < 0 || rcDest.left > 4096 || rcDest.top > 4096) {
+			return;
+		}
+
 		// lprint(std::string("flip ") + inttostr(_backSurfaceIndex));
 
 		if (_dds_Primary && _dds_Back[_backSurfaceIndex]) {
@@ -708,20 +717,20 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 	switch (message) {
 
 	case WM_SYSKEYUP:
-		// lprint(std::string("WM_KEYUP ") + inttostr(wParam));
+		// lprint(std::string("WM_KEYUP ") + inttostr(wParam) + " " + inttostr((int)(lParam & (1 << 28))));
 		if (wParam == VK_RETURN) {
 			if (((GetKeyState(VK_MENU) & 0x8000) || (GetKeyState(VK_RMENU) & 0x8000))) {
 				if (_fullscreen) {
 					lprint("alt+enter minimize");
 					disableFullScreen();
-					PostMessage(_hwnd, 0x421, 0, 0);
+					PostMessage(_hwnd, 0x401, 0, 0);
 
 				}
 				else {
 					// lprint(std::string("enable fullscreen by alt+tab ") + inttostr(_monitorModeInfo.dwWidth) + "x" + inttostr(_monitorModeInfo.dwHeight));
 					lprint("alt+enter expand");
 					enableFullScreen(_monitorModeInfo.dwWidth, _monitorModeInfo.dwHeight);
-					PostMessage(_hwnd, 0x422, 0, 0);
+					PostMessage(_hwnd, 0x402, 0, 0);
 
 				}
 			}
@@ -794,6 +803,25 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		return 1;
 
 	case WM_SIZE:
+		// lprint(std::string("WM_SIZE ") + inttostr((int)wParam))
+		if (!_fullscreen) {
+			if (_hided) {
+				if (wParam == SIZE_RESTORED) {
+					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+					_hided = false;
+					lprint("set hide = false");
+				}
+			}
+			else {
+				if (wParam == SIZE_MINIMIZED) {
+					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+					_hided = true;
+					lprint("set hide = true");
+				}
+
+			}
+		}
+
 		this->WM_Size(LOWORD(lParam), HIWORD(lParam));
 		break;
 

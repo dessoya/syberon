@@ -6,12 +6,13 @@
 #include "syberon\LuaScript.h"
 
 #include "syberon\Files.h"
+// #include "steam_api.h"
 
 LuaScript *coreScript = NULL;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+
 	if (coreScript) {
-		// lprint("WndProc " + inttostr((void *)wParam));
 		if (coreScript->executeObjectMethod("game", "_onWindowMessage", 
 			DL->add((_uint)message)->add((_uint)lParam)->add((_uint)LOWORD(lParam))->add((_uint)HIWORD(lParam))->add((_uint)wParam))) {
 			lprint(coreScript->getError());
@@ -26,6 +27,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 	switch (message) {
 
+	case WM_CHAR:
+	case WM_SYSKEYDOWN:
+	case WM_SYSKEYUP:
+	case WM_KEYDOWN:
+	case WM_KEYUP:
 	case WM_ERASEBKGND:
 		return TRUE;
 
@@ -38,7 +44,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
-
 	return 0;
 }
 
@@ -63,6 +68,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	Files_loadPack("lua.pack");
 #endif
 
+	/*
+	if (SteamAPI_Init()) {
+		lprint("SteamAPI_Init() ok ");
+	}
+	*/
 
 	WNDCLASSEXW wcex;
 	wcex.cbSize = sizeof(WNDCLASSEX);
@@ -105,8 +115,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	MSG msg;
 	while (GetMessage(&msg, hWnd, 0, 0)) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		// TranslateMessage(&msg);
+		DispatchMessage(&msg);		
 	}
 
 	return (int)msg.wParam;

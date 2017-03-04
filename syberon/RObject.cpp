@@ -128,3 +128,115 @@ void RImage::setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha
 	_sh = sh;
 	_useAlpha = useAlpha;
 }
+
+
+#define MAP_W 256
+#define MAP_H 192
+#define MAX_CELLS 256
+
+RMap::RMap(int w, int h) : _cw(w), _ch(h) {
+
+	_map = new CellID[MAP_W * MAP_H];
+	memset(_map, 0, sizeof(CellID) * MAP_W * MAP_H);
+
+	_vw = 3;
+	_vh = 3;
+
+	_images = new CellInfo[MAX_CELLS];
+	memset(_images, 0, sizeof(CellInfo) * MAX_CELLS);
+
+}
+
+void RMap::setupCellImage(CellID id, Image *image, int x, int y) {
+
+	_images[id].image = image;
+	_images[id].x = x;
+	_images[id].y = y;
+
+}
+
+void RMap::setupViewSize(int w, int h) {
+	
+	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
+
+	_vw = w;
+	_vh = h;
+}
+
+void RMap::draw(DrawMachine *dm) {
+
+	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
+
+	dm->lockDDS();
+
+	unsigned char *p = dm->_surface;
+	long l = dm->_pitch;
+
+	// long l2 = l / 4;
+	// lprint(std::string("l ") + inttostr(l) + " l2 " + inttostr(l2));
+
+	for (int y = 0; y < _vh; y++) {
+
+		int ty = y * _ch;
+		if (ty >= dm->_height) break;
+
+		auto c = &_map[MAP_W * y];
+
+		for (int x = 0; x < _vw; x++) {
+
+			// lets draw cell
+			auto i = &_images[*c];
+			auto image = i->image;
+			long l3 = image->_width;
+
+			int tx = x * _cw;
+			if (tx >= dm->_width) break;
+			
+			DWORD *imageLine = (DWORD *)&image->_data[(i->y * image->_width + i->x) * 4];
+			auto sLine = &p[ty * l + tx * 4];
+
+			int l1 = _cw;
+			if (tx + l1 > dm->_width) {
+				l1 = _cw - ((tx + l1) - dm->_width);
+			}
+
+			int l11 = _ch;
+			if (ty + l11 > dm->_height) {
+				l11 = _ch - ((ty + l11) - dm->_height);
+			}
+
+			for (int y1 = 0; y1 < l11; y1++) {
+
+				// if (ty + y1 >= dm->_height) break;
+
+
+				// if (l1 < 1) break;
+
+				DWORD *imageLine1 = imageLine;
+				DWORD *sLine1 = (DWORD *)sLine;
+
+				memcpy(sLine, imageLine, l1 * 4);
+
+				/*
+				for (int x1 = 0; x1 < l1; x1++) {
+
+					*sLine1 = *imageLine1;
+
+					sLine1 ++;
+					imageLine1 ++;
+
+				}
+				*/
+
+				imageLine += l3;
+				sLine += l;
+
+			}
+
+			c++;
+		}
+
+	}
+
+	dm->unlockDDS();
+}

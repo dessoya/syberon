@@ -104,6 +104,9 @@ void DrawMachine::Text(int x, int y,  const wchar_t *text, HFONT font, DWORD col
 
 //	TimeCalc *t1 = new TimeCalc();
 	_dds->GetDC(&hdc);
+	if (hdc == NULL) {
+		return;
+	}
 
 	SelectObject(hdc, font);
 	SetBkMode(hdc, TRANSPARENT);
@@ -137,6 +140,7 @@ void DrawMachine::ImageText(int x, int y, const wchar_t *text, ImageFont *font) 
 
 void DrawMachine::DrawImage(Image *image, int x, int y, int fromx, int fromy, int w, int h, bool _useAlpha) {
 
+	// lprint(std::string("DrawImage ") + inttostr(x) + " " + inttostr(y) + " " + inttostr(fromx) + " " + inttostr(fromy) + " " + inttostr(w) + " " + inttostr(h))
 	if (_useAlpha) {
 
 		// lprint("_useAlpha");
@@ -197,10 +201,10 @@ void DrawMachine::DrawImage(Image *image, int x, int y, int fromx, int fromy, in
 					continue;
 				}
 
-				
-				dl[0] = min((long(sl[0]) * long(sl[3]) + long(dl[0]) * 255) / 255, 255);
-				dl[1] = min((long(sl[1]) * long(sl[3]) + long(dl[1]) * 255) / 255, 255);
-				dl[2] = min((long(sl[2]) * long(sl[3]) + long(dl[2]) * 255) / 255, 255);
+				int a = 255 - sl[3];
+				dl[0] = min((long(sl[0]) * long(sl[3]) + long(dl[0]) * a) / 255, 255);
+				dl[1] = min((long(sl[1]) * long(sl[3]) + long(dl[1]) * a) / 255, 255);
+				dl[2] = min((long(sl[2]) * long(sl[3]) + long(dl[2]) * a) / 255, 255);
 				
 
 			}

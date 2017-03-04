@@ -122,3 +122,28 @@ public:
 	void draw(DrawMachine *dm);
 	void setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha);
 };
+
+typedef unsigned short int CellID;
+typedef struct {
+
+	Image *image;
+	int x, y;
+
+} CellInfo;
+
+class RMap : public RObject {
+private:
+	boost::mutex _propMutex;
+
+	CellInfo *_images;
+	CellID *_map;
+	int _vw, _vh;
+	int _cw, _ch;
+
+public:
+	RMap(int w, int h);
+	void draw(DrawMachine *dm);
+
+	void setupCellImage(CellID id, Image *image, int x, int y);
+	void setupViewSize(int w, int h);
+};

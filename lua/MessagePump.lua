@@ -5,7 +5,12 @@ local WindowsConst = require("Windows\\Const")
 local MessagePump = Object:extend()
 
 function MessagePump:initialize(messageNames)
-	self.messageNames = messageNames
+	if messageNames ~= nil then
+		self.messageNames = messageNames
+	else
+		self.messageNames = { }
+	end
+
 	self.messageNames.onWindowMessage = "onWindowMessage"
 	self.messageMap = { }
 end

@@ -66,7 +66,8 @@ static int luaC_Font_New(lua_State *L) {
 	HFONT font = CreateFontIndirect(&MyLogFont);
 
 	if (wfilepath) {
-		lprint(std::string("RemoveFontResource ") + inttostr(RemoveFontResourceEx(wfilepath, FR_PRIVATE, NULL)));
+
+		// lprint(std::string("RemoveFontResource ") + inttostr(RemoveFontResourceEx(wfilepath, FR_PRIVATE, NULL)));
 		
 		delete wfilepath;
 		lprint(std::string("delete file font.ttf ") + inttostr(remove("font.ttf")));

@@ -35,7 +35,6 @@ private:
 
 	LPDIRECTDRAWCLIPPER _ddc_Clipper;
 
-	int _width, _height, _bpp;
 	int _new_width, _new_height;
 	bool _thread_resize;
 
@@ -54,6 +53,8 @@ private:
 
 public:
 
+	int _width, _height, _bpp, _frameTime;
+	
 	DDSURFACEDESC2 _monitorModeInfo;
 	boost::mutex _robjectMutex, _threadMutex;
 	PeriodCorrector *pc;

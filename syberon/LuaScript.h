@@ -25,7 +25,8 @@ enum {
 	UDT_RBox,
 	UDT_RText,
 	UDT_RIText,
-	UDT_RImage
+	UDT_RImage,
+	UDT_RMap
 };
 
 typedef struct {
@@ -63,6 +64,7 @@ public:
 			break;
 		case UDT_Void:
 		case UDT_Image:
+		case UDT_Renderer:
 			auto ud1 = (UserData *)lua_newuserdata(L, sizeof(UserData));
 			ud1->data = ud.data;
 			ud1->type = ud.type;

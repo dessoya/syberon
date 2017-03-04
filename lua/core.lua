@@ -1,6 +1,8 @@
 
 local libs = { }
 
+_G.bn = { [true] = "true", [false] = "false" }
+
 _G.require = function(moduleName)
 
 	if not libs[moduleName] then

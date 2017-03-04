@@ -115,6 +115,17 @@ static int luaC_Renderer_setFPS(lua_State *L) {
 	return 0;
 }
 
+
+static int luaC_Renderer_getFrameTime(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto *renderer = (Renderer *)ud->data;
+
+	lua_pushinteger(L, renderer->_frameTime);
+
+	return 1;
+}
+
 static int luaC_Renderer_add(lua_State *L) {
 
 	UserData *ud = (UserData *)lua_touserdata(L, 1);
@@ -202,6 +213,22 @@ static int luaC_Renderer_getCurrentHeight(lua_State *L) {
 	return 1;
 }
 
+static int luaC_Renderer_getCurrentViewWidth(lua_State *L) {
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto r = (Renderer *)ud->data;
+
+	lua_pushinteger(L, r->_width);
+	return 1;
+}
+
+static int luaC_Renderer_getCurrentViewHeight(lua_State *L) {
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto r = (Renderer *)ud->data;
+
+	lua_pushinteger(L, r->_height);
+
+	return 1;
+}
 
 
 static int luaC_GUI_Object_getID(lua_State *L) {
@@ -377,8 +404,6 @@ static int luaC_GUI_Image_New(lua_State *L) {
 	auto ud = (UserData *)lua_touserdata(L, 3);
 	auto image = (Image *)ud->data;
 
-	lprint("luaC_GUI_Image_New " + image->_filename);
-
 	auto sx = lua_tointeger(L, 4);
 	auto sy = lua_tointeger(L, 5);
 	auto sw = lua_tointeger(L, 6);
@@ -386,6 +411,8 @@ static int luaC_GUI_Image_New(lua_State *L) {
 	auto useAlpha = lua_toboolean(L, 8);
 
 	auto i = new RImage(x, y, image, sx, sy, sw, sh, useAlpha);
+
+	lprint("luaC_GUI_Image_New " + image->_filename + " " + inttostr(x) + " " + inttostr(y) + " " + inttostr(sx) + " " + inttostr(sy) + " " + inttostr(sw) + " " + inttostr(sh));
 
 	ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
 	ud->type = UDT_RImage;
@@ -412,12 +439,60 @@ static int luaC_GUI_Image_setProp(lua_State *L) {
 	return 0;
 }
 
+static int luaC_GUI_Map_New(lua_State *L) {
+
+	auto cw = lua_tointeger(L, 1);
+	auto ch = lua_tointeger(L, 2);
+	auto useAlpha = lua_toboolean(L, 8);
+
+	auto m = new RMap(cw, ch);
+
+	auto ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
+	ud->type = UDT_RMap;
+	ud->data = m;
+
+	return 1;
+}
+
+static int luaC_GUI_Map_setupCellImage(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	auto id = lua_tointeger(L, 2);
+
+	ud = (UserData *)lua_touserdata(L, 3);
+	auto image = (Image *)ud->data;
+
+	auto x = lua_tointeger(L, 4);
+	auto y = lua_tointeger(L, 5);
+
+	m->setupCellImage(id, image, x, y);
+
+	return 0;
+}
+
+static int luaC_GUI_Map_setupViewSize(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	auto w = lua_tointeger(L, 2);
+	auto h = lua_tointeger(L, 3);
+
+	m->setupViewSize(w, h);
+
+	return 0;
+}
+
+
 void lm_Renderer_install(lua_State* _l) {
 
 	lua_register(_l, "C_Renderer_New", luaC_Renderer_New);
 	lua_register(_l, "C_Renderer_onWindowMessage", luaC_Renderer_onWindowMessage);
 	lua_register(_l, "C_Renderer_setFPS", luaC_Renderer_setFPS);
 	lua_register(_l, "C_Renderer_getFPS", luaC_Renderer_getFPS);
+	lua_register(_l, "C_Renderer_getFrameTime", luaC_Renderer_getFrameTime);
 	lua_register(_l, "C_Renderer_add", luaC_Renderer_add);
 	lua_register(_l, "C_Renderer_del", luaC_Renderer_del);
 	lua_register(_l, "C_Renderer_lockObjectList", luaC_Renderer_lockObjectList);
@@ -429,7 +504,9 @@ void lm_Renderer_install(lua_State* _l) {
 	lua_register(_l, "C_Renderer_getCurrentWidth", luaC_Renderer_getCurrentWidth);
 	lua_register(_l, "C_Renderer_getCurrentHeight", luaC_Renderer_getCurrentHeight);
 	
-	
+	lua_register(_l, "C_Renderer_getCurrentViewWidth", luaC_Renderer_getCurrentViewWidth);
+	lua_register(_l, "C_Renderer_getCurrentViewHeight", luaC_Renderer_getCurrentViewHeight);
+
 		
 	lua_register(_l, "C_GUI_Object_getID", luaC_GUI_Object_getID);
 
@@ -447,6 +524,12 @@ void lm_Renderer_install(lua_State* _l) {
 
 	lua_register(_l, "C_GUI_Image_New", luaC_GUI_Image_New);
 	lua_register(_l, "C_GUI_Image_setProp", luaC_GUI_Image_setProp);
+
+
+	lua_register(_l, "C_GUI_Map_New", luaC_GUI_Map_New);
+	lua_register(_l, "C_GUI_Map_setupCellImage", luaC_GUI_Map_setupCellImage);
+	lua_register(_l, "C_GUI_Map_setupViewSize", luaC_GUI_Map_setupViewSize);
+	
 }
 
 LuaModule *lm_Renderer = new LuaModule("renderer", lm_Renderer_install);

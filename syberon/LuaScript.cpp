@@ -12,20 +12,26 @@ int errorHandler(lua_State* L) {
 
 	const char* err = lua_tostring(L, 1);
 
-	lastError = std::string("Error: ") + err;
+	if (err != NULL) {
+		lastError = std::string("Error: ") + err;
+	}
+	else {
+		lastError = "";
+	}
 
 	lua_getglobal(L, "debug");
 	lua_getfield(L, -1, "traceback");
 
 	if (lua_pcall(L, 0, 1, 0)) {
 		const char* err = lua_tostring(L, -1);
-
 		// lprint(std::string("Error in debug.traceback() call: ") + err + "\n");
 	}
 	else {
 		const char* stackTrace = lua_tostring(L, -1);
 		lastError += std::string("\n") + stackTrace;
 	}
+
+	// lprint(lastError);
 
 	return 1;
 }

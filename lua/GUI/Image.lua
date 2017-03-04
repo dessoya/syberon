@@ -12,7 +12,7 @@ function Image:initialize(x,y,image,sx,sy,sw,sh,useAlpha)
 	self.sw = sw
 	self.sh = sh
 	self.useAlpha = useAlpha
-	self._ptr = C_GUI_Image_New(x, y, image, sx, sy, w, h, useAlpha)
+	self._ptr = C_GUI_Image_New(x, y, image, sx, sy, sw, sh, useAlpha)
 	self.id = self:getID()
 end
 

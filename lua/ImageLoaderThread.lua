@@ -3,6 +3,9 @@ local Const = require("ImageLoaderConst")
 
 local Images = {
 	  "controls.png"
+	, "ter1.png"
+	, "player-basic-idle.png"
+	, "player-basic-run.png"
 --	, "font_v1.png"
 }
 local TestImages = { }

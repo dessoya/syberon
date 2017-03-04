@@ -6,19 +6,28 @@ local Cursor = require("Windows\\Cursor")
 
 local Renderer = GUIObject:extend() 
 
-function Renderer:initialize(hwnd, pump)
+function Renderer:initialize(hwnd, pump, _ptr)
+
 	self.id = "renderer"
 	self.hwnd = hwnd
 	self.lockCount = 0
-	self._ptr = C_Renderer_New(hwnd)
-	pump:addNames({
-		[WindowsConst.WM.Size]			= "onWindowSize",
-		[WindowsConst.WM.MouseMove]		= "onMouseMove",
-		[WindowsConst.WM.LButtonDown]	= "onLButtonDown",
-		[WindowsConst.WM.LButtonUp]		= "onLButtonUp",
-		[WindowsConst.WM.Active]		= "onWindowActive"
-	})
-	pump:registerReciever(self)
+
+	if pump ~= nil then
+		pump:addNames({
+			[WindowsConst.WM.Size]			= "onWindowSize",
+			[WindowsConst.WM.MouseMove]		= "onMouseMove",
+			[WindowsConst.WM.LButtonDown]	= "onLButtonDown",
+			[WindowsConst.WM.LButtonUp]		= "onLButtonUp",
+			[WindowsConst.WM.Active]		= "onWindowActive"
+		})
+		pump:registerReciever(self)
+	end
+
+	if _ptr ~= nil then
+		self._ptr = _ptr
+	else
+		self._ptr = C_Renderer_New(hwnd)
+	end
 
 end
 
@@ -34,9 +43,9 @@ end
 
 function Renderer:name() return "renderer" end
 
-function Renderer:add(object)
+function Renderer:add(object, layer)
 	self:addChild(object)
-	object:pushToRenderer(self)
+	object:pushToRenderer(self, layer)
 	return object
 end
 
@@ -110,6 +119,14 @@ end
 
 function Renderer:getCurrentHeight()
 	return C_Renderer_getCurrentHeight(self._ptr)
+end
+
+function Renderer:getCurrentViewWidth()
+	return C_Renderer_getCurrentViewWidth(self._ptr)
+end
+
+function Renderer:getCurrentViewHeight()
+	return C_Renderer_getCurrentViewHeight(self._ptr)
 end
 
 function Renderer:modify(f)

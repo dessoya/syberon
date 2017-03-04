@@ -25,10 +25,11 @@ function GUIObject:invokeChilds(methodName, ...)
 
 end
 
-function GUIObject:pushToRenderer(renderer)
+function GUIObject:pushToRenderer(renderer, layer)
 
 	if self._ptr ~= nil then
-		C_Renderer_add(renderer._ptr, self._ptr, GUIConst.Layers.Interface)
+		if layer == nil then layer = GUIConst.Layers.Interface end
+		C_Renderer_add(renderer._ptr, self._ptr, layer)
 	end
 
 	if self.childs then
