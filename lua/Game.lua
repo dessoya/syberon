@@ -4,6 +4,7 @@ local Object = require("Object")
 local Timer = require("Timer")
 local Renderer = require("Renderer")
 local GUI = require("GUI")
+local GUIConst = require("GUI\\Const")
 local WindowsConst = require("Windows\\Const")
 
 local OptionFile = require("OptionFile")
@@ -45,29 +46,12 @@ function Game:onStart(hwnd)
 	self.keys:attachToPump(self.messagePump)
 	self.keys:registerReciever(self)
 
-	Timer:new(1300, function()
-		lprint("timer")
-	end)
-
 	self.optionFile = OptionFile:new("game.cfg")
 
+	self:checkVideoOptions()
+	self:checkKeysOptions()
+
 	local g = self.optionFile:getGroup("video")
-	if g == nil then
-		g = { }
-	end
-
-	if g.fullscreen == nil then
-		g.fullscreen = false
-	end
-
-	if g.screenWidth == nil then
-		g.screenWidth = self.renderer:getCurrentWidth()
-		g.screenHeight = self.renderer:getCurrentHeight()
-	end
-
-	self.optionFile:setGroup("video", g)
-	self.optionFile:save()
-
 	if g.fullscreen then
 		self.renderer:enableFullScreen(g.screenWidth, g.screenHeight)
 	end
@@ -84,7 +68,7 @@ function Game:onStart(hwnd)
 
 
 	self.renderer:modify(function()
-		self.background = self.renderer:add(GUI.Background:new())
+		self.background = self.renderer:add(GUI.Background:new(), GUIConst.Layers.Map)
 		self.fpsText = self.renderer:add(GUI.Text:new(10, 10, "FPS: ", GUI.Fonts.basic, 255, 255, 255))		
 		self.ftText = self.renderer:add(GUI.Text:new(10, 30, "Frame time: ", GUI.Fonts.basic, 255, 255, 255))		
 	end)
@@ -106,11 +90,59 @@ function Game:onStart(hwnd)
 
 	end)
 
-	self.world = World:new(self.messagePump, Images, hwnd, self.renderer._ptr)
+	self.world = World:new(self.messagePump, Images, hwnd, self.renderer._ptr, self.optionFile)
+
+end
+
+
+function Game:checkKeysOptions()
+	local g = self.optionFile:getGroup("keys")
+	if g == nil then
+		g = { }
+	end
+
+	local default = {
+		up = Keys.Codes.W,
+		down = Keys.Codes.S,
+		left = Keys.Codes.A,
+		right = Keys.Codes.D
+	}
+
+	for name, code in pairs(default) do
+		if g[name] == nil then
+			g[name] = code
+		end
+	end
+
+	self.optionFile:setGroup("keys", g)
+	self.optionFile:save()
+end
+
+function Game:checkVideoOptions()
+
+	local g = self.optionFile:getGroup("video")
+	if g == nil then
+		g = { }
+	end
+
+	if g.fullscreen == nil then
+		g.fullscreen = false
+	end
+
+	if g.screenWidth == nil then
+		g.screenWidth = self.renderer:getCurrentWidth()
+		g.screenHeight = self.renderer:getCurrentHeight()
+	end
+
+	self.optionFile:setGroup("video", g)
+	self.optionFile:save()
 
 end
 
 function Game:keyPressed(key, alt)
+	if key == Keys.Codes.F4 and alt then
+		C_Thread_PostMessage(self.hwnd, WindowsConst.WM.Destroy)
+	end
 end
 
 function Game:keyUnPressed(key, alt)
@@ -143,7 +175,6 @@ function Game:keyUnPressed(key, alt)
 			end
 
 		end
-
 
 	end
 end
@@ -181,7 +212,6 @@ function Game:openMainMenu()
 				self.menuIsOpened = false
 				self.mainMenu = nil
 				self.renderer:del(self.background)
-				-- self.renderer:add(GUI.Image:new(210, 150, Images["ter1.png"], 0, 0, 150, 150, false))
 			end)
 			self.gameInProgress = true
 			self.world:create()
@@ -190,7 +220,7 @@ function Game:openMainMenu()
 		-- quit  button
 
 		function()
-			C_Exit()
+			C_Thread_PostMessage(self.hwnd, WindowsConst.WM.Destroy)
 		end
 	)
 	
@@ -260,6 +290,10 @@ end
 
 function Game:_onWindowMessage(message, lparam, lparam1, lparam2, wparam)
 	return self.messagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
+end
+
+function Game:onQuit()
+	lprint("Game:onQuit")
 end
 
 return Game

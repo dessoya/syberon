@@ -2,6 +2,7 @@
 #include "..\Logger.h"
 #include "..\LuaScript.h"
 #include "..\Renderer.h"
+#include "..\Map.h"
 #include <list>
 
 typedef struct {
@@ -441,13 +442,16 @@ static int luaC_GUI_Image_setProp(lua_State *L) {
 
 static int luaC_GUI_Map_New(lua_State *L) {
 
-	auto cw = lua_tointeger(L, 1);
-	auto ch = lua_tointeger(L, 2);
+	auto ud = (UserData *)lua_touserdata(L, 1);	
+	auto _m = (WorldMap *)ud->data;
+
+	auto cw = lua_tointeger(L, 2);
+	auto ch = lua_tointeger(L, 3);
 	auto useAlpha = lua_toboolean(L, 8);
 
-	auto m = new RMap(cw, ch);
+	auto m = new RMap(_m, cw, ch);
 
-	auto ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
+	ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
 	ud->type = UDT_RMap;
 	ud->data = m;
 

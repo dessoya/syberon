@@ -6,6 +6,7 @@ Const.WM = {
 	R_DisableFullscreen		= 0x401,
 	R_EnableFullscreen		= 0x402,	
 
+	Destroy					= 2,
 	Timer					= 0x0113,
 	Size					= 5,
 	MouseMove				= 0x200,

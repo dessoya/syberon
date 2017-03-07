@@ -160,6 +160,25 @@ void DrawMachine::DrawImage(Image *image, int x, int y, int fromx, int fromy, in
 		lprint(std::string("lock time ") + inttostr(t1->get()));
 		*/
 
+		if (y >= _height || x >= _width || x + w < 0 || y + h < 0) { return; }
+
+		if (y + h > _height) { h = _height - y; }
+		if (x + w > _width) { w = _width - x; }
+
+		if (y < 0) {
+			h += y;
+			fromy -= y;
+			y = 0;
+		}
+
+		if (x < 0) {
+			w += x;
+			fromx -= x;
+			x = 0;
+		}
+
+
+
 		lockDDS();
 
 	//	TimeCalc *t2 = new TimeCalc();
@@ -202,10 +221,18 @@ void DrawMachine::DrawImage(Image *image, int x, int y, int fromx, int fromy, in
 				}
 
 				int a = 255 - sl[3];
+
+				
 				dl[0] = min((long(sl[0]) * long(sl[3]) + long(dl[0]) * a) / 255, 255);
 				dl[1] = min((long(sl[1]) * long(sl[3]) + long(dl[1]) * a) / 255, 255);
 				dl[2] = min((long(sl[2]) * long(sl[3]) + long(dl[2]) * a) / 255, 255);
 				
+				/*
+				dl[0] = min((long(sl[0]) * long(sl[3]) + long(dl[0]) * 255) / 255, 255);
+				dl[1] = min((long(sl[1]) * long(sl[3]) + long(dl[1]) * 255) / 255, 255);
+				dl[2] = min((long(sl[2]) * long(sl[3]) + long(dl[2]) * 255) / 255, 255);
+				*/
+
 
 			}
 			s += ls;

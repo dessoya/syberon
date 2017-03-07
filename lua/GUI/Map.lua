@@ -2,10 +2,10 @@
 local GUIObject = require("GUI\\Object")
 local Map = GUIObject:extend()
 
-function Map:initialize(cw, ch)
+function Map:initialize(map, cw, ch)
 	self.cw = cw
 	self.ch = ch
-	self._ptr = C_GUI_Map_New(cw, ch)
+	self._ptr = C_GUI_Map_New(map._ptr, cw, ch)
 	self.id = self:getID()
 end
 

@@ -10,6 +10,7 @@
 
 #include "DrawMachine.h"
 #include "ImageFont.h"
+#include "Map.h"
 
 class RObject {
 
@@ -123,7 +124,6 @@ public:
 	void setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha);
 };
 
-typedef unsigned short int CellID;
 typedef struct {
 
 	Image *image;
@@ -139,9 +139,12 @@ private:
 	CellID *_map;
 	int _vw, _vh;
 	int _cw, _ch;
+	int _ox, _oy;
+	lint _mx, _my;
+	WorldMap *_worldMap;
 
 public:
-	RMap(int w, int h);
+	RMap(WorldMap  *map, int w, int h);
 	void draw(DrawMachine *dm);
 
 	void setupCellImage(CellID id, Image *image, int x, int y);

@@ -86,7 +86,12 @@ end
 
 Keys.Codes = {
 	Alt = 18,
-	Esc = 0x1b
+	Esc = 0x1b,
+	F4 = 0x73,
+	W = 0x57,
+	S = 0x53,
+	A = 0x41,
+	D = 0x44
 }
 
 return Keys

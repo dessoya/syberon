@@ -134,13 +134,26 @@ void RImage::setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha
 #define MAP_H 192
 #define MAX_CELLS 256
 
-RMap::RMap(int w, int h) : _cw(w), _ch(h) {
+char *bline = NULL;
+char *gline = NULL;
+
+RMap::RMap(Map *map, int w, int h) : _worldMap(map), _cw(w), _ch(h) {
+
+	if (bline == NULL) {
+		bline = new char[4 * 256];
+		memset(bline, 0xff000000, 256);
+	}
+
+	if (gline == NULL) {
+		gline = new char[4 * 256];
+		memset(bline, 0xff303030, 256);
+	}
 
 	_map = new CellID[MAP_W * MAP_H];
 	memset(_map, 0, sizeof(CellID) * MAP_W * MAP_H);
 
-	_vw = 3;
-	_vh = 3;
+	_vw = 3; _ox = 0; _mx = 0;
+	_vh = 3; _oy = 0; _my = 0;
 
 	_images = new CellInfo[MAX_CELLS];
 	memset(_images, 0, sizeof(CellInfo) * MAX_CELLS);
@@ -161,6 +174,13 @@ void RMap::setupViewSize(int w, int h) {
 
 	_vw = w;
 	_vh = h;
+
+	// lets load from worldmap
+	for (lint y = 0; y < _vh; y++) {
+		for (lint x = 0; x < _vw; x++) {
+			_map[x + y * MAP_W] = _worldMap->getCell(_mx + x, _my + y);
+		}
+	}
 }
 
 void RMap::draw(DrawMachine *dm) {
@@ -185,14 +205,38 @@ void RMap::draw(DrawMachine *dm) {
 		for (int x = 0; x < _vw; x++) {
 
 			// lets draw cell
-			auto i = &_images[*c];
-			auto image = i->image;
-			long l3 = image->_width;
+			auto cid = *c;
+
+			/*
+			0 = gline
+			ABSENT_CELL = bline
+			*/
+
+			bool _add = true;
 
 			int tx = x * _cw;
 			if (tx >= dm->_width) break;
 			
-			DWORD *imageLine = (DWORD *)&image->_data[(i->y * image->_width + i->x) * 4];
+
+			DWORD *imageLine;
+			long l3;
+
+			if (cid == 0 || cid == ABSENT_CELL) {
+				_add = false;
+				if (cid) {
+					imageLine = (DWORD *)bline;
+				}
+				else {
+					imageLine = (DWORD *)gline;
+				}
+			}
+			else {
+				auto i = &_images[cid];
+				auto image = i->image;
+				l3 = image->_width;
+				imageLine = (DWORD *)&image->_data[(i->y * image->_width + i->x) * 4];
+			}
+
 			auto sLine = &p[ty * l + tx * 4];
 
 			int l1 = _cw;
@@ -228,7 +272,9 @@ void RMap::draw(DrawMachine *dm) {
 				}
 				*/
 
-				imageLine += l3;
+				if (_add) {
+					imageLine += l3;
+				}
 				sLine += l;
 
 			}

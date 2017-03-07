@@ -133,6 +133,24 @@ static int luaC_Thread_PeekMessage(lua_State *L) {
 	return 1;
 }
 
+static int luaC_Thread_GetMessage(lua_State *L) {
+
+	MSG msg = { 0 };
+	if (GetMessage(&msg, NULL, 0, 0)) {
+
+		_messageId = msg.message;
+		_lparam = msg.lParam;
+		_wparam = msg.wParam;
+
+		lua_pushboolean(L, TRUE);
+	}
+	else {
+		lua_pushboolean(L, FALSE);
+	}
+
+	return 1;
+}
+
 static int luaC_Thread_GetMessageId(lua_State *L) {
 	lua_pushinteger(L, _messageId);
 	return 1;
@@ -157,6 +175,8 @@ void lm_Thread_install(lua_State* _l) {
 	lua_register(_l, "C_Thread_PostMessage", luaC_Thread_PostMessage);	
 
 	lua_register(_l, "C_Thread_PeekMessage", luaC_Thread_PeekMessage);
+	lua_register(_l, "C_Thread_GetMessage", luaC_Thread_GetMessage);
+
 	lua_register(_l, "C_Thread_GetMessageId", luaC_Thread_GetMessageId);
 	lua_register(_l, "C_Thread_GetLParam", luaC_Thread_GetLParam);
 	lua_register(_l, "C_Thread_GetWParam", luaC_Thread_GetWParam);

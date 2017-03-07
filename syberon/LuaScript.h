@@ -11,16 +11,32 @@ extern "C" {
 }
 
 enum {
+
+	// scalar types
+
 	UDT_Void = 0,
 	UDT_Int,
 	UDT_String,
+
+	// complex data type
+
 	UDT_TableList,
+
+	// resource types 
+
 	UDT_Font,
 	UDT_ImageFont,
 	UDT_Music,
 	UDT_Image,
 	UDT_Cursor,
+
+	// modules
+
+	UDT_Map,
 	UDT_Renderer,
+
+	// renderer objects 
+
 	UDT_RRect,
 	UDT_RBox,
 	UDT_RText,

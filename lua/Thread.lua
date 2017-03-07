@@ -8,8 +8,14 @@ function Thread:initialize(filename, ...)
 end
 
 function Thread:send(message, lparam, wparam)
+	local c = 0
 	while C_Thread_PostMessage(self.id, message, lparam, wparam) do
 		C_Timer_Sleep(1)
+		c = c + 1
+		if c > 100 then
+			lprint("Thread:send error " .. message)
+			return
+		end
 	end
 end
 

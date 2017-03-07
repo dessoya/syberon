@@ -7,6 +7,7 @@
 
 #include "syberon\Files.h"
 // #include "steam_api.h"
+#include "syberon\Map.h"
 
 LuaScript *coreScript = NULL;
 
@@ -37,8 +38,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 		
 	case WM_DESTROY:
+	case WM_CLOSE:
+
+		if (coreScript) {
+			if (coreScript->executeObjectMethod("game", "onQuit")) {
+				lprint(coreScript->getError());
+			}
+		}
+
 		PostQuitMessage(0);
-		exit(0);
+		exit(1);
+		// exit(0);
+
 		break;
 
 	default:
@@ -57,6 +68,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 #endif
 
 	lprint("\n\nstarted");
+
+	// auto m = new Map();
+	// m->trace_coords(0, 0);
+	/*
+	lprint(std::string("cell 0x0 ") + inttostr((void *)m->getCell(0,0)));
+	m->addBlock(2000, 2000);
+	lprint(std::string("cell 0x0 ") + inttostr((void *)m->getCell(2000, 2000)));
+	*/
+	// m->addBlock(0, 0);
 
 #ifdef _DEBUG
 	if (0) {

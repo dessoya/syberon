@@ -3,7 +3,8 @@ local WConst = require("Windows\\Const")
 local GUIConst = require("GUI\\Const")
 local MessagePump = require("MessagePump")
 local Renderer = require("Renderer")
-local Map = require("GUI\\Map")
+local Map = require("Map")
+local RMap = require("GUI\\Map")
 
 local ImageGetter = require("World\\ImageGetter")
 
@@ -19,11 +20,21 @@ function World:initialize(hwnd, renderer_ptr)
 	self.pump = MessagePump:new({		
 		[Const.CMD_Quit]			= "onQuit",
 		[Const.CMD_Create]			= "onCreate",
-		[WConst.WM.Size]			= "onWindowSize"
+		[WConst.WM.Size]			= "onWindowSize",
+		[Const.CMD_ThreadId]		= "onThreadId",
+		[Const.CMD_UpdateObject]	= "onUpdateObject",
+		[Const.CMD_Timer]			= "onTimer"
 	})
 	self.pump:registerReciever(self)
 	self.renderer = Renderer:new(hwnd, nil, renderer_ptr)
 
+end
+
+function World:onThreadId(lparam)
+	lprint("World:onThreadId")
+	local data = C_UnpackTable(lparam)
+	dump(data)
+	self.interfaceThreadId = data.interface
 end
 
 function World:start()
@@ -41,13 +52,13 @@ function World:start()
 
 		self:beforePeekMessage()
 
-		while C_Thread_PeekMessage() do			
+		while C_Thread_GetMessage() do			
 			local message = C_Thread_GetMessageId()
-			lprint("message " .. message .. " " .. C_Thread_GetLParam() .. " " .. C_Thread_GetWParam())
+			-- lprint("message " .. message .. " " .. C_Thread_GetLParam() .. " " .. C_Thread_GetWParam())
 			self.pump:onWindowMessage(message, C_Thread_GetLParam(), 0, 0, C_Thread_GetWParam())
 		end
 
-		C_Timer_Sleep(35)
+		-- C_Timer_Sleep(35)
 	end
 end
 
@@ -61,19 +72,23 @@ end
 function World:onCreate()
 
 	lprint("World:onCreate")
-	self.map = Map:new(80, 80)
+	self.map = Map:new()
+	self.map:set(0, 0, 1)
+	
+	self.rmap = RMap:new(self.map, 80, 80)
 	local t = self.images["ter1.png"]
-	self.map:setupCellImage(0, t, 214, 280)
+	-- self.map:setupCellImage(0, t, 214, 280)
+	self.rmap:setupCellImage(1, t, 134, 120)
 
 	local vw = math.floor(self.renderer:getCurrentViewWidth() / 80) + 2
 	local vh = math.floor(self.renderer:getCurrentViewHeight() / 80) + 2
 
-	self.map:setupViewSize(vw, vh)
+	self.rmap:setupViewSize(vw, vh)
 	-- lprint("map:setupViewSize " .. vw .. "x" .. vh)
 
 	self.renderer:modify(function()
 		lprint("add map")
-		self.renderer:add(self.map, GUIConst.Layers.Map)
+		self.renderer:add(self.rmap, GUIConst.Layers.Map)
 	end)
 
 	self.objects = { }
@@ -84,29 +99,61 @@ function World:onCreate()
 
 end
 
+function World:onTimer()
+	-- treat object
+	if self.objects == nil then return end
+	
+	for id, object in pairs(self.objects) do
+		object:treat()
+	end
+end
+
 function World:add(object)
-	table.insert(self.objects, object)
+
+	-- table.insert(self.objects, object)
+	self.objects[object.id] = object
+
 	if self:checkForViewPort(object) then
 		object:addToRenderer(self.renderer)
 		self:sendToInterface(object)
 	end
 end
 
+function World:onUpdateObject(lparam)
+	local data = C_UnpackTable(lparam)
+	lprint("World:onUpdateObject")
+	dump(data)
+	local id = data.id
+
+	if self.objects[id] == nil then
+		lprint("Error: World:onUpdateObject self.objects[id] == nil")
+		return
+	end
+
+	local object = self.objects[id]
+	data.id = nil
+
+	-- treat to this moment
+	object:treat()
+	object:update(data)
+
+end
+
 function World:checkForViewPort(object)
 	return true
 end
 
-function World:sendToInterface(object)
-
+function World:sendToInterface(object)	
+	C_Thread_PostMessage(self.interfaceThreadId, Const.CMD_AddObject, C_PackTable(object:serialize()))
 end
 
 function World:onWindowSize(w, d1, d2, h)
 
-	if self.map ~= nil then
+	if self.rmap ~= nil then
 		local vw = math.floor(w / 80) + 2
 		local vh = math.floor(h / 80) + 2
 
-		self.map:setupViewSize(vw, vh)
+		self.rmap:setupViewSize(vw, vh)
 		-- lprint("map:setupViewSize " .. vw .. "x" .. vh)
 	end
 end

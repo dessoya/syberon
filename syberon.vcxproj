@@ -163,10 +163,12 @@
     <ClCompile Include="syberon\lua\Font.cpp" />
     <ClCompile Include="syberon\lua\Image.cpp" />
     <ClCompile Include="syberon\lua\ImageFont.cpp" />
+    <ClCompile Include="syberon\lua\Map.cpp" />
     <ClCompile Include="syberon\lua\Music.cpp" />
     <ClCompile Include="syberon\lua\Renderer.cpp" />
     <ClCompile Include="syberon\lua\Thread.cpp" />
     <ClCompile Include="syberon\lua\Timer.cpp" />
+    <ClCompile Include="syberon\Map.cpp" />
     <ClCompile Include="syberon\PeriodCorrector.cpp" />
     <ClCompile Include="syberon\Renderer.cpp" />
     <ClCompile Include="syberon\RObject.cpp" />
@@ -179,6 +181,7 @@
     <ClInclude Include="syberon\ImageFont.h" />
     <ClInclude Include="syberon\Logger.h" />
     <ClInclude Include="syberon\LuaScript.h" />
+    <ClInclude Include="syberon\Map.h" />
     <ClInclude Include="syberon\PeriodCorrector.h" />
     <ClInclude Include="syberon\Renderer.h" />
     <ClInclude Include="syberon\RObject.h" />

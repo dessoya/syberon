@@ -34,6 +34,23 @@ static int luaC_Timer_Sleep(lua_State *L) {
 	return 0;
 }
 
+static int luaC_Timer_QueryPerformanceFrequency(lua_State *L) {
+
+	LARGE_INTEGER l;
+	QueryPerformanceFrequency(&l);
+	lua_pushinteger(L, l.QuadPart);
+
+	return 1;
+}
+
+static int luaC_Timer_QueryPerformanceCounter(lua_State *L) {
+
+	LARGE_INTEGER l;
+	QueryPerformanceCounter(&l);
+	lua_pushinteger(L, l.QuadPart);
+
+	return 1;
+}
 
 
 void lm_Timer_install(lua_State* _l) {
@@ -43,6 +60,8 @@ void lm_Timer_install(lua_State* _l) {
 	
 	lua_register(_l, "C_Timer_Sleep", luaC_Timer_Sleep);
 
+	lua_register(_l, "C_Timer_QueryPerformanceFrequency", luaC_Timer_QueryPerformanceFrequency);
+	lua_register(_l, "C_Timer_QueryPerformanceCounter", luaC_Timer_QueryPerformanceCounter);
 }
 
 LuaModule *lm_Timer = new LuaModule("timer", lm_Timer_install);

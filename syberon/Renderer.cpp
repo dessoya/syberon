@@ -207,7 +207,7 @@ void Renderer::switchToFullscreen() {
 		ddsd.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
 		ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX | DDSCAPS_SYSTEMMEMORY;
 		// ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX;
-		ddsd.ddsCaps.dwCaps2 = DDCAPS2_FLIPNOVSYNC;
+		// ddsd.ddsCaps.dwCaps2 = DDCAPS2_FLIPNOVSYNC;
 		ddsd.dwBackBufferCount = 1;
 
 		hr = _dd->CreateSurface(&ddsd, &_dds_Primary, NULL);
@@ -513,7 +513,7 @@ DWORD Renderer::threadProc() {
 
 	Logger::setThreadName("Renderer");
 	lprint("Renderer::threadProc");
-	pc = new PeriodCorrector(80);
+	pc = new PeriodCorrector(59);
 	HRESULT hr;
 
 
@@ -666,7 +666,8 @@ void Renderer::flip() {
 	HRESULT hr;
 
 	if (_fullscreen && _useBackBuffer) {
-		hr = this->_dds_Primary->Flip(NULL, DDFLIP_NOVSYNC | DDFLIP_DONOTWAIT);
+		// hr = this->_dds_Primary->Flip(NULL, DDFLIP_NOVSYNC | DDFLIP_DONOTWAIT);
+		hr = this->_dds_Primary->Flip(NULL, 0);
 	}
 	else {
 

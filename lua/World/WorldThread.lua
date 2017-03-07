@@ -1,4 +1,5 @@
-
+C_InstallModule("timer")
+	
 local World = require("World\\World")
 
 function thread(hwnd, renderer_ptr)
