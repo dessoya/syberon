@@ -29,6 +29,7 @@ function GUIObject:pushToRenderer(renderer, layer)
 
 	if self._ptr ~= nil then
 		if layer == nil then layer = GUIConst.Layers.Interface end
+		self.layer = layer
 		C_Renderer_add(renderer._ptr, self._ptr, layer)
 	end
 
@@ -42,7 +43,7 @@ end
 function GUIObject:delFromRenderer(renderer)
 
 	if self._ptr ~= nil then
-		C_Renderer_del(renderer._ptr, self._ptr, GUIConst.Layers.Interface)
+		C_Renderer_del(renderer._ptr, self._ptr, self.layer)
 	end
 
 	if self.childs then

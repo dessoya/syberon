@@ -23,7 +23,8 @@ function World:initialize(hwnd, renderer_ptr)
 		[WConst.WM.Size]			= "onWindowSize",
 		[Const.CMD_ThreadId]		= "onThreadId",
 		[Const.CMD_UpdateObject]	= "onUpdateObject",
-		[Const.CMD_Timer]			= "onTimer"
+		[Const.CMD_Timer]			= "onTimer",
+		[Const.CMD_UpdateOptions]	= "onUpdateOptions"		
 	})
 	self.pump:registerReciever(self)
 	self.renderer = Renderer:new(hwnd, nil, renderer_ptr)
@@ -35,6 +36,17 @@ function World:onThreadId(lparam)
 	local data = C_UnpackTable(lparam)
 	dump(data)
 	self.interfaceThreadId = data.interface
+end
+
+function World:onUpdateOptions(options, l1, l2, data)
+	lprint("World:onUpdateOptions " .. options)
+	local g = C_UnpackTable(data)
+	if options == Const.Options.Interface then
+		self.interface = g
+		if self.player ~= nil then
+			self.player:onInterfaceUpdate(self.interface)
+		end
+	end
 end
 
 function World:start()
@@ -52,13 +64,14 @@ function World:start()
 
 		self:beforePeekMessage()
 
-		while C_Thread_GetMessage() do			
+		while C_Thread_PeekMessage() do			
 			local message = C_Thread_GetMessageId()
 			-- lprint("message " .. message .. " " .. C_Thread_GetLParam() .. " " .. C_Thread_GetWParam())
 			self.pump:onWindowMessage(message, C_Thread_GetLParam(), 0, 0, C_Thread_GetWParam())
 		end
 
-		-- C_Timer_Sleep(35)
+		self:onTimer()
+		C_Timer_Sleep(5)
 	end
 end
 
@@ -74,6 +87,8 @@ function World:onCreate()
 	lprint("World:onCreate")
 	self.map = Map:new()
 	self.map:set(0, 0, 1)
+	self.map:set(1, 1, 1)
+	self.map:set(3, 1, 1)
 	
 	self.rmap = RMap:new(self.map, 80, 80)
 	local t = self.images["ter1.png"]
@@ -83,7 +98,7 @@ function World:onCreate()
 	local vw = math.floor(self.renderer:getCurrentViewWidth() / 80) + 2
 	local vh = math.floor(self.renderer:getCurrentViewHeight() / 80) + 2
 
-	self.rmap:setupViewSize(vw, vh)
+	self.rmap:setupViewSize(vw, vh, self.renderer:getCurrentViewWidth(), self.renderer:getCurrentViewHeight())
 	-- lprint("map:setupViewSize " .. vw .. "x" .. vh)
 
 	self.renderer:modify(function()
@@ -93,9 +108,9 @@ function World:onCreate()
 
 	self.objects = { }
 
-	local player = Player:new(200, 200)
+	self.player = Player:new(200, 200, self.rmap, self.interface)
 	-- self:centerView(player)
-	self:add(player)
+	self:add(self.player)
 
 end
 
@@ -153,7 +168,10 @@ function World:onWindowSize(w, d1, d2, h)
 		local vw = math.floor(w / 80) + 2
 		local vh = math.floor(h / 80) + 2
 
-		self.rmap:setupViewSize(vw, vh)
+		self.rmap:setupViewSize(vw, vh, w, h)
+		if self.player ~= nil then
+			self.player:afterChangeCoords()
+		end
 		-- lprint("map:setupViewSize " .. vw .. "x" .. vh)
 	end
 end

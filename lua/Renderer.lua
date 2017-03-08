@@ -149,7 +149,7 @@ function Renderer:onWindowActive(lparam, lparam1, lparam2, wparam)
 	if wparam == 0 then
 		C_Renderer_setFPS(self._ptr, 10)
 	else
-		C_Renderer_setFPS(self._ptr, 59)
+		C_Renderer_setFPS(self._ptr, 80)
 	end
 end
 

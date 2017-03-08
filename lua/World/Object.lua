@@ -4,7 +4,7 @@ local WorldObject = Object:extend()
 
 local idGenerator = 1
 local f = C_Timer_QueryPerformanceFrequency()
-local period = math.floor(f / 1000 / 3)
+local period = math.floor(f / 10000)
 
 function WorldObject:initialize(x, y)
 	self.x = x

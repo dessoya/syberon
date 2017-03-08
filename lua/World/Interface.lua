@@ -16,7 +16,8 @@ function Interface:initialize(hwnd)
 		[Const.CMD_Quit]			= "onQuit",
 		[Const.CMD_AddObject]		= "onAddObject",
 		[Const.CMD_Keys]			= "onKeys",
-		[Const.CMD_ThreadId]		= "onThreadId"		
+		[Const.CMD_ThreadId]		= "onThreadId",
+		[Const.CMD_UpdateOptions]	= "onUpdateOptions"
 	})
 	self.pump:registerReciever(self)
 
@@ -27,6 +28,14 @@ function Interface:initialize(hwnd)
 
 	self.objects = { }
 
+end
+
+function Interface:onUpdateOptions(options, l1, l2, data)
+	lprint("Interface:onUpdateOptions " .. options)
+	local g = C_UnpackTable(data)
+	if options == Const.Options.Interface then
+		self.interface = g
+	end
 end
 
 function Interface:onThreadId(lparam)

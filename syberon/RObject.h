@@ -121,7 +121,7 @@ private:
 public:
 	RImage(int x, int y, Image *image, int sx, int sy, int sw, int sh, bool useAlpha);
 	void draw(DrawMachine *dm);
-	void setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha);
+	void setProp(int x, int y, Image *image, int sx, int sy, int sw, int sh, bool useAlpha);
 };
 
 typedef struct {
@@ -140,8 +140,10 @@ private:
 	int _vw, _vh;
 	int _cw, _ch;
 	int _ox, _oy;
-	lint _mx, _my;
+	long long _mx, _my;
 	WorldMap *_worldMap;
+
+	void _loadFromWorldMap();
 
 public:
 	RMap(WorldMap  *map, int w, int h);
@@ -149,4 +151,5 @@ public:
 
 	void setupCellImage(CellID id, Image *image, int x, int y);
 	void setupViewSize(int w, int h);
+	void setCoors(long long x, long long y);
 };

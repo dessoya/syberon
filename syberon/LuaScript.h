@@ -16,6 +16,7 @@ enum {
 
 	UDT_Void = 0,
 	UDT_Int,
+	UDT_Bool,
 	UDT_String,
 
 	// complex data type
@@ -58,6 +59,7 @@ public:
 	DataItem *_next;
 	DataItem(void *v) : _next(NULL) { ud.data = v; ud.type = UDT_Void; }
 	DataItem(_int i) : _next(NULL) { ud.data = (void *)i; ud.type = UDT_Int; }
+	DataItem(BOOL b, int d) : _next(NULL) { ud.data = (void *)b; ud.type = UDT_Bool; }
 	DataItem(const char *s) : _next(NULL) { ud.data = (void *)new std::string(s); ud.type = UDT_String; }
 	DataItem(UserData *ud1) : _next(NULL) { ud.data = ud1->data; ud.type = ud1->type; }
 	~DataItem() {
@@ -74,6 +76,9 @@ public:
 		switch (ud.type) {
 		case UDT_Int:
 			lua_pushinteger(L, (_int)ud.data);
+			break;
+		case UDT_Bool:
+			lua_pushboolean(L, (BOOL)ud.data);
 			break;
 		case UDT_String:
 			lua_pushstring(L, ((std::string *)ud.data)->c_str());
@@ -113,6 +118,7 @@ public:
 	inline DataList *add(void *v) { add(new DataItem(v)); return this; }
 	inline DataList *add(_int i) { add(new DataItem(i)); return this; }
 	inline DataList *add(const char *s) { add(new DataItem(s)); return this; }
+	inline DataList *addBool(BOOL b) { add(new DataItem(b, 1)); return this; }
 	inline DataList *add(UserData *ud) { add(new DataItem(ud)); return this; }
 	inline DataList *add(DataItem *da) {
 		count++;
@@ -133,8 +139,11 @@ public:
 		else if (lua_isstring(L, index)) {
 			add(lua_tostring(L, index));
 		}
-		else if (lua_isuserdata(L, index)) {			
+		else if (lua_isuserdata(L, index)) {
 			add((UserData *)lua_touserdata(L, index));
+		}
+		else if (lua_isboolean(L, index)) {
+			addBool((BOOL)lua_toboolean(L, index));
 		}
 		return this;
 	}

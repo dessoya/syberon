@@ -30,6 +30,21 @@ void PeriodCorrector::startPeriod() {
 	QueryPerformanceCounter(&this->_startPeriod);
 }
 
+void PeriodCorrector::afterDraw() {
+
+	LARGE_INTEGER ElapsedMicroseconds, ad;
+
+	QueryPerformanceCounter(&ad);
+
+	ElapsedMicroseconds.QuadPart = ad.QuadPart - _startPeriod.QuadPart;
+
+	double c = (double)ElapsedMicroseconds.QuadPart;
+
+	c *= (double)1000000;
+	c /= (double)_frequency.QuadPart;
+	msCurrentPeriod = c;
+}
+
 void PeriodCorrector::endPeriod() {
 
 	LARGE_INTEGER ElapsedMicroseconds;
@@ -43,7 +58,7 @@ void PeriodCorrector::endPeriod() {
 	msCurrentPeriod *= (double)1000000;
 	msCurrentPeriod /= (double)this->_frequency.QuadPart;
 
-	this->msCurrentPeriod = msCurrentPeriod;
+	// this->msCurrentPeriod = msCurrentPeriod;
 
 	int ms = (int)((this->_msPerPeriod - msCurrentPeriod - this->_delta) / 1000);
 	this->sleepMS = ms;
@@ -53,7 +68,7 @@ void PeriodCorrector::endPeriod() {
 		// Concurrency::wait(ms);
 	}
 	else {
-		Sleep(1);
+		Sleep(0);
 	}
 
 	QueryPerformanceCounter(&this->_afterSleep);

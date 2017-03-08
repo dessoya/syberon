@@ -6,7 +6,13 @@ _G.bn = { [true] = "true", [false] = "false" }
 _G.require = function(moduleName)
 
 	if not libs[moduleName] then
-		libs[moduleName] = C_ExecuteFile(moduleName .. ".lua")
+		local status, r1 = pcall(C_ExecuteFile, moduleName .. ".lua")
+		if status then
+			libs[moduleName] = r1
+		else
+			libs[moduleName] = nil
+			eprint(r1)
+		end
 	end
 
 	return libs[moduleName]

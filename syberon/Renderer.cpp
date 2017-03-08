@@ -5,6 +5,8 @@
 #include "Image.h"
 #include "Utils.h"
 
+extern void MiniDumpFunction(unsigned int nExceptionCode, EXCEPTION_POINTERS *pException);
+
 #define DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
         EXTERN_C const GUID DECLSPEC_SELECTANY name \
                 = { l, w1, w2, { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }
@@ -148,8 +150,10 @@ void Renderer::releaseAllSurfaces() {
 	lprint("Renderer::releaseAllSurfaces");
 
 	if (_dds_backFullScreen) {
-		_dds_backFullScreen->Release();
-		_dds_backFullScreen = NULL;
+		for (int i = 0; i < _bcount; i++) {
+			// _dds_backFullScreen->Release();
+			_dds_backFullScreen[i] = NULL;
+		}
 	}
 
 	if (_ddc_Clipper) {
@@ -170,17 +174,42 @@ void Renderer::releaseAllSurfaces() {
 	}
 }
 
+HRESULT WINAPI _EnumSurfacesCallback7(
+	_In_ LPDIRECTDRAWSURFACE7 lpDDSurface,
+	_In_ LPDDSURFACEDESC2     lpDDSurfaceDesc,
+	_In_ LPVOID               lpContext
+) {
+	auto r = (Renderer *)lpContext;
+	// if(lpDDSurfaceDesc->dwFlags & DDSCAPS2_)
+	r->_dds_backFullScreen[r->_epos] = lpDDSurface;
+	r->_epos++;
+	lprint(std::string("_EnumSurfacesCallback7 ") + inttostr((void *)lpDDSurfaceDesc->dwFlags));
+	return DDENUMRET_OK;
+}
+
+class Buffer {
+public:
+	LPDIRECTDRAWSURFACE7 _dds;
+	bool _atScreen;
+	unsigned int _pitch;
+	char *_surface;
+};
+
 void Renderer::switchToFullscreen() {
 
+	lprint("before GetDisplayMode");
 	DDSURFACEDESC2 _curmonitorModeInfo;
 	memset(&_curmonitorModeInfo, 0, sizeof(_curmonitorModeInfo));
 	_curmonitorModeInfo.dwSize = sizeof(_curmonitorModeInfo);
 	HRESULT hr = _dd->GetDisplayMode(&_curmonitorModeInfo);
+	lprint("after GetDisplayMode");
 	if (FAILED(hr)) {
 		lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
 	}
 
 
+	if(1) {
+	/*
 	if (_fullscreenW == _curmonitorModeInfo.dwWidth && _fullscreenH == _curmonitorModeInfo.dwHeight) {
 
 		_useBackBuffer = false;
@@ -188,42 +217,132 @@ void Renderer::switchToFullscreen() {
 
 	}
 	else {
+	*/
 
 		_useBackBuffer = true;
 
-		// lprint(std::string("_thread_enableFullScreen SetDisplayMode"));
-		hr = _dd->SetDisplayMode(_fullscreenW, _fullscreenH, 32, 0, 0);
-		if (FAILED(hr)) {
-			lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
+		/*
+		SetWindowPos(_hwnd, 
+			HWND_TOPMOST,  // placement-order handle
+			0,     // horizontal position
+			0,      // vertical position
+			0,  // width
+			0, // height
+			SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE  );
+		SetForegroundWindow(_hwnd);
+		ShowWindow(_hwnd, SW_MAXIMIZE);
+		*/
+
+
+		if (_fullscreenW == _curmonitorModeInfo.dwWidth && _fullscreenH == _curmonitorModeInfo.dwHeight) {
+		}
+		else {
+			// lprint(std::string("_thread_enableFullScreen SetDisplayMode"));
+			lprint("before SetDisplayMode");
+			hr = _dd->SetDisplayMode(_fullscreenW, _fullscreenH, 32, 0, 0);
+			lprint("after SetDisplayMode");
+			if (FAILED(hr)) {
+				lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
+			}
 		}
 
 
 		lprint("Renderer::switchToFullscreen createSurface");
 
 		DDSURFACEDESC2 ddsd;
+		DDSCAPS2 ddsd2;
+
+		_bcount = 8;
 		memset(&ddsd, 0, sizeof(ddsd));
 		ddsd.dwSize = sizeof(ddsd);
 
 		ddsd.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
-		ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX | DDSCAPS_SYSTEMMEMORY;
-		// ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX;
+		ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX | DDSCAPS_VIDEOMEMORY;
 		// ddsd.ddsCaps.dwCaps2 = DDCAPS2_FLIPNOVSYNC;
-		ddsd.dwBackBufferCount = 1;
+		ddsd.dwBackBufferCount = _bcount;
 
+		lprint("before CreateSurface _dds_Primary");
 		hr = _dd->CreateSurface(&ddsd, &_dds_Primary, NULL);
+		lprint("after CreateSurface _dds_Primary");
 		if (FAILED(hr)) {
 			lprint(std::string("Error: CreateSurface ") + DDErrorString(hr));
+			// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
+			hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL);
+			exit(1);
 		}
 
-		DDSCAPS2 surfcaps;
-		memset(&surfcaps, 0, sizeof(surfcaps));
-		surfcaps.dwCaps = DDSCAPS_BACKBUFFER;
-		// lprint(std::string("_thread_enableFullScreen GetAttachedSurface"));
-		hr = _dds_Primary->GetAttachedSurface(&surfcaps, &_dds_backFullScreen);
-		if (hr != DD_OK) {
-			_dds_backFullScreen = NULL;
-			lprint(std::string("Error: GetAttachedSurface ") + DDErrorString(hr));
+		memset(&ddsd, 0, sizeof(ddsd));
+		ddsd.dwSize = sizeof(ddsd);
+
+		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT | DDSD_CAPS;
+		ddsd.dwWidth = _fullscreenW;
+		ddsd.dwHeight = _fullscreenH;
+		ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
+
+		hr = _dd->CreateSurface(&ddsd, &_dds_backFullScreen[0], NULL);
+		if (FAILED(hr)) {
+			lprint(std::string("error createBackSurface ") + DDErrorString(hr));
+			exit(1);
 		}
+
+
+		/*
+		auto _iter = _bcount + _bcount / 2;
+		int _finded = 0;
+
+		// typedef char *pchar;
+		// char **backs = new pchar[_bcount];
+		Buffer *backs = (Buffer *)malloc(sizeof(Buffer) * _bcount);
+
+		while (_finded != _bcount && _iter) {
+
+			lprint("flip for search");
+			_dds_Primary->Flip(NULL, DDFLIP_WAIT);
+
+			ZeroMemory(&ddsd2, sizeof(ddsd2));
+			ddsd2.dwCaps = DDSCAPS_BACKBUFFER;
+			auto bb = _dds_Primary;
+			_dds_Primary->GetAttachedSurface(&ddsd2, &bb);
+
+			DDSURFACEDESC2 ddsd;
+			ddsd.dwSize = sizeof(ddsd);
+			hr = bb->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
+			if (hr != DD_OK) {
+				lprint(std::string("Error _dds_Primary->Lock ") + DDErrorString(hr));
+				return;
+			}
+
+			auto _surface = (char *)ddsd.lpSurface;
+
+			bb->Unlock(NULL);
+
+			// check for exists
+			bool _exist = false;
+			for (int i = 0; i < _finded; i++) {
+				if (backs[i]._surface == _surface) {
+					_exist = true;
+					break;
+				}
+			}
+			if (_exist) {
+				continue;
+			}
+			Buffer *b = &backs[_finded];
+			b->_surface = _surface;
+			b->_pitch = ddsd.lPitch;
+			b->_dds = bb;
+			b->_atScreen = false;
+
+			_finded++;
+		}
+		*/
+
+		/*
+		for (int i = 0; i < _finded; i++) {
+			lprint(std::string("back ") + inttostr((void *)backs[i]));
+		}
+		*/
+
 
 	}
 	PostMessage(_hwnd, 0x400, 0, 0);
@@ -232,43 +351,62 @@ void Renderer::switchToFullscreen() {
 
 void Renderer::enableFullScreen(int w, int h) {
 
-	boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+	{
+		_inSwitch = true;
+		// _hided = true;
 
-	HRESULT hr;
+		lprint("Renderer::enableFullScreen before lock");
+		boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+		lprint("after lock");
 
-	// lprint(std::string("_thread_enableFullScreen ") + inttostr(w) + "x" + inttostr(h));
+
+		HRESULT hr;
+
+		// lprint(std::string("_thread_enableFullScreen ") + inttostr(w) + "x" + inttostr(h));
 
 
-	if (!_fullscreen) {
-		saveWindowedState();
+		if (!_fullscreen) {
+			saveWindowedState();
+		}
+
+		_fullscreen = true;
+
+		lprint("before SetWindowLong");
+		SetWindowLong(_hwnd, GWL_STYLE, _windowStyle & ~WS_OVERLAPPEDWINDOW);
+		lprint("after SetWindowLong");
+
+		// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
+		lprint("before SetCooperativeLevel DDSCL_FULLSCREEN");
+		hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+		lprint("after SetCooperativeLevel");
+		if (FAILED(hr)) {
+			lprint("Error: SetCooperativeLevel");
+			return;
+		}
+
+		releaseAllSurfaces();
+
+		// release surfaces
+		_width = _fullscreenW = w;
+		_height = _fullscreenH = h;
+
+		switchToFullscreen();
+		// _hided = false;
+		_inSwitch = false;
 	}
-
-	_fullscreen = true;
-
-	SetWindowLong(_hwnd, GWL_STYLE, _windowStyle & ~WS_OVERLAPPEDWINDOW);
-
-	hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
-	if (FAILED(hr)) {
-		lprint("Error: SetCooperativeLevel");
-		return;
-	}
-
-	releaseAllSurfaces();
-
-	// release surfaces
-	_width = _fullscreenW = w;
-	_height = _fullscreenH = h;
-
-	switchToFullscreen();
 
 	// lprint(std::string("_thread_enableFullScreen done"));
 }
 
 void Renderer::disableFullScreen() {
 
+	{
+	_inSwitch = true;
 	// lprint(std::string("disableFullScreen 1"));
 
+	lprint("before lock disableFullScreen");
 	boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+	lprint("after lock");
 
 	HRESULT hr;
 
@@ -284,12 +422,11 @@ void Renderer::disableFullScreen() {
 		lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
 	}
 
-
+	
 	if (_fullscreenW == _curmonitorModeInfo.dwWidth && _fullscreenH == _curmonitorModeInfo.dwHeight) {
 
 	}
 	else {
-
 		hr = _dd->SetDisplayMode(_monitorModeInfo.dwWidth, _monitorModeInfo.dwHeight, _monitorModeInfo.ddpfPixelFormat.dwRGBBitCount, 0, 0);
 		if (FAILED(hr)) {
 			lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
@@ -297,9 +434,10 @@ void Renderer::disableFullScreen() {
 		}
 	}
 
-	hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
+	// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
+	hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL);
 
-	SetWindowLong(_hwnd, GWL_STYLE, _windowStyle| WS_OVERLAPPEDWINDOW);
+	SetWindowLong(_hwnd, GWL_STYLE, _windowStyle | WS_OVERLAPPEDWINDOW);
 	SetWindowPlacement(_hwnd, &_windowPos);
 	SetWindowPos(_hwnd, NULL,
 		_windowPos.rcNormalPosition.left, _windowPos.rcNormalPosition.top, _windowPos.rcNormalPosition.right, _windowPos.rcNormalPosition.bottom,
@@ -309,6 +447,8 @@ void Renderer::disableFullScreen() {
 	_height = _windowPos.rcNormalPosition.bottom - _windowPos.rcNormalPosition.top;
 	createSurfaces();
 
+	_inSwitch = false;
+	}
 	PostMessage(_hwnd, 0x400, 0, 0);
 }
 
@@ -326,6 +466,13 @@ HRESULT WINAPI EnumModes_(_In_ LPDDSURFACEDESC2  d, _In_ LPVOID lpContext) {
 
 Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd) {
 	
+	_inSwitch = false;
+	_bcount = 3;
+	_dds_backFullScreen = new LPDIRECTDRAWSURFACE7[_bcount];
+	for (int i = 0; i < _bcount; i++) {
+		_dds_backFullScreen[i] = NULL;
+	}
+
 	_arrowNotSet = true;
 	_drawMachine = new DrawMachine();
 
@@ -349,10 +496,11 @@ Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd
 
 	Image::init(_dd);
 
-	_backSurfaceCount = 1;
+	_backSurfaceCount = 2;
 	_backSurfaceIndex = 0;
 
-	_dds_backFullScreen = NULL;
+	// _dds_backFullScreen = NULL;
+
 	_dds_Primary = NULL;
 	_ddc_Clipper = NULL;
 	_dds_Back = new LPDIRECTDRAWSURFACE7[_backSurfaceCount];
@@ -370,9 +518,13 @@ Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd
 		_fullscreenW = mw;
 		_fullscreenH = mh;
 
+		lprint("SetWindowLong");
 		SetWindowLong(_hwnd, GWL_STYLE, _windowStyle & ~WS_OVERLAPPEDWINDOW);
 
-		hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
+		// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
+		lprint("before SetCooperativeLevel DDSCL_FULLSCREEN");
+		hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+		lprint("after SetCooperativeLevel");
 		if (FAILED(hr)) {
 			lprint("Error: SetCooperativeLevel");
 			return;
@@ -471,7 +623,7 @@ bool Renderer::createSurfaces() {
 		lprint(std::string("error CreateClipper ") + DDErrorString(hr));
 		return false;
 	}
-
+	
 	hr = this->_ddc_Clipper->SetHWnd(0, _hwnd);
 	if (FAILED(hr)) {
 		lprint(std::string("error SetHWnd ") + DDErrorString(hr));
@@ -511,64 +663,89 @@ void Renderer::setFPS(int fps) {
 
 DWORD Renderer::threadProc() {
 
+	_set_se_translator(MiniDumpFunction);
+	try  // this try block allows the SE translator to work
+	{
+		
 	Logger::setThreadName("Renderer");
 	lprint("Renderer::threadProc");
-	pc = new PeriodCorrector(59);
+	pc = new PeriodCorrector(80);
 	HRESULT hr;
 
 
 	while (true) {
 
-		{
-			pc->startPeriod();
+		{		
+			if (!_inSwitch) {
 
-			if (!_hided) {
+				if (!_hided) {
 
-				boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
 
-				if (this->_thread_resize && !_fullscreen) {
+					if (this->_thread_resize && !_fullscreen) {
 
-					// lprint("wm_size " + boost::lexical_cast<std::string>(_new_width) + " " + boost::lexical_cast<std::string>(_new_height));
+						// lprint("wm_size " + boost::lexical_cast<std::string>(_new_width) + " " + boost::lexical_cast<std::string>(_new_height));
 
 
-					for (int i = 0; i < this->_backSurfaceCount; i++) {
-						this->_dds_Back[i]->Release();
+						for (int i = 0; i < this->_backSurfaceCount; i++) {
+							this->_dds_Back[i]->Release();
+						}
+
+						this->_width = this->_new_width;
+						this->_height = this->_new_height;
+						this->createBackSurface();
+
+						this->_thread_resize = false;
 					}
 
-					this->_width = this->_new_width;
-					this->_height = this->_new_height;
-					this->createBackSurface();
+					// swprintf(wString, L"delta %d, st %d, msperframe %d, framems %d, drawms %d, sleep %d, bsum %d, cnt %d, fps %d", (int)delta, st, (int)msperframe, (int)framems, (int)drawms, a, (int)bsum, cnt, (int)fps);
+					/*
+					swprintf(this->_wString, L"nResults %d, fps %d, frameMS %d, curFrameMS %d, msWithSleep %d, sleepMS %d, delta %d",
+						nResults,
+						(int)pc->periodsPerSecond,
+						(int)pc->msPerPeriod,
+						(int)pc->msCurrentPeriod,
+						(int)pc->msWithSleep,
+						pc->sleepMS,
+						(int)pc->delta
+					);
+					*/
 
-					this->_thread_resize = false;
+					pc->startPeriod();
+
+					_fps = (int)pc->periodsPerSecond;
+
+					this->checkSurfaces();
+					this->draw();
+					pc->afterDraw();
+
+					_frameTime = (int)pc->msCurrentPeriod;
+
+					this->flip();
+					pc->endPeriod();
 				}
-
-				// swprintf(wString, L"delta %d, st %d, msperframe %d, framems %d, drawms %d, sleep %d, bsum %d, cnt %d, fps %d", (int)delta, st, (int)msperframe, (int)framems, (int)drawms, a, (int)bsum, cnt, (int)fps);
-				/*
-				swprintf(this->_wString, L"nResults %d, fps %d, frameMS %d, curFrameMS %d, msWithSleep %d, sleepMS %d, delta %d",
-					nResults,
-					(int)pc->periodsPerSecond,
-					(int)pc->msPerPeriod,
-					(int)pc->msCurrentPeriod,
-					(int)pc->msWithSleep,
-					pc->sleepMS,
-					(int)pc->delta
-				);
-				*/
-
-				_fps = (int)pc->periodsPerSecond;
-				_frameTime = (int)pc->msCurrentPeriod;
-
-				this->checkSurfaces();
-				this->draw();
-				this->flip();
+				else {
+					Sleep(1);
+				}
+			}
+			else {
+				Sleep(1);
 			}
 		}
 
-		pc->endPeriod();
+		
 
 	}
 
 	return 0;
+	}
+	catch (...)
+	{
+		lprint("render thread err");
+		exit(1);
+		return -1;
+	}
+
 }
 
 void Renderer::add(RObject *object, int layer) {
@@ -603,12 +780,16 @@ void Renderer::del(RObject *object, int layer) {
 void Renderer::checkSurfaces() {
 
 	if (_fullscreen && _useBackBuffer) {
+
 		if (_dds_Primary->IsLost() == DDERR_SURFACELOST)
 			_dds_Primary->Restore();
 		
-		if (_dds_backFullScreen->IsLost() == DDERR_SURFACELOST)
-			_dds_backFullScreen->Restore();
+		/*
 		
+		if (_dds_backFullScreen[_epos] && _dds_backFullScreen[_epos]->IsLost() == DDERR_SURFACELOST)
+			_dds_backFullScreen[_epos]->Restore();
+		
+		*/
 	}
 	else {
 		if (_dds_Primary->IsLost() == DDERR_SURFACELOST)
@@ -639,7 +820,42 @@ void Renderer::unlockObjectList() {
 void Renderer::draw() {
 
 	if (_fullscreen && _useBackBuffer) {
-		_drawMachine->setDDS(this->_dds_backFullScreen, this->_width, this->_height);
+
+		/*
+		DDSCAPS2 surfcaps;
+		memset(&surfcaps, 0, sizeof(surfcaps));
+		surfcaps.dwCaps = DDSCAPS_BACKBUFFER;
+		auto b = _dds_Primary;
+		HRESULT hr = _dds_Primary->GetAttachedSurface(&surfcaps, &b);
+		if (hr != DD_OK) {
+			_dds_backFullScreen = NULL;
+			lprint(std::string("Error: GetAttachedSurface ") + DDErrorString(hr));			
+		}
+
+		if (b) {
+			_drawMachine->setDDS(b, _width, _height);			
+		}
+		else {
+			return;
+		}
+		*/
+
+		/*
+		DDSCAPS2 surfcaps;
+		memset(&surfcaps, 0, sizeof(surfcaps));
+		surfcaps.dwCaps = DDSCAPS_BACKBUFFER;
+
+		auto b = _dds_Primary;
+		HRESULT hr = _dds_Primary->GetAttachedSurface(&surfcaps, &b);
+		if (hr != DD_OK) {
+			_dds_backFullScreen = NULL;
+			lprint(std::string("Error: GetAttachedSurface ") + DDErrorString(hr));
+		}
+		_drawMachine->setDDS(b, _width, _height);
+		*/
+
+		_drawMachine->setDDS(_dds_backFullScreen[0], _width, _height);
+		
 	}
 	else {
 		_drawMachine->setDDS(this->_dds_Back[this->_backSurfaceIndex], this->_width, this->_height);
@@ -666,8 +882,64 @@ void Renderer::flip() {
 	HRESULT hr;
 
 	if (_fullscreen && _useBackBuffer) {
+		// return;
 		// hr = this->_dds_Primary->Flip(NULL, DDFLIP_NOVSYNC | DDFLIP_DONOTWAIT);
-		hr = this->_dds_Primary->Flip(NULL, 0);
+
+		DDSCAPS2 surfcaps;
+		memset(&surfcaps, 0, sizeof(surfcaps));
+		surfcaps.dwCaps = DDSCAPS_BACKBUFFER;
+
+		auto b = _dds_Primary;
+		HRESULT hr = _dds_Primary->GetAttachedSurface(&surfcaps, &b);
+		if (hr != DD_OK) {
+			_dds_backFullScreen = NULL;
+			lprint(std::string("Error: GetAttachedSurface ") + DDErrorString(hr));
+		}
+
+		DDSURFACEDESC2 ddsd;
+		ddsd.dwSize = sizeof(ddsd);
+		hr = b->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
+		if (hr != DD_OK) {
+			lprint(std::string("Error b->Lock ") + DDErrorString(hr));
+			return;
+		}
+
+		DDSURFACEDESC2 ddsdb;
+		ddsdb.dwSize = sizeof(ddsdb);
+		hr = _dds_backFullScreen[0]->Lock(NULL, &ddsdb, DDLOCK_WAIT, NULL);
+		if (hr != DD_OK) {
+			lprint(std::string("Error bs->Lock ") + DDErrorString(hr));
+			return;
+		}
+
+		char *s = (char *)ddsdb.lpSurface;
+		char *d = (char *)ddsd.lpSurface;
+		auto sl = ddsdb.lPitch;
+		auto dl = ddsd.lPitch;
+
+		for (int y = 0; y < _fullscreenH; y++) {
+			memcpy(d, s, _fullscreenW * 4);
+			s += sl;
+			d += dl;
+		}
+
+		b->Unlock(NULL);
+		_dds_backFullScreen[0]->Unlock(NULL);
+
+		// _dds_Primary = NULL;
+		hr = _dds_Primary->Flip(NULL, DDFLIP_WAIT);
+		if (hr != DD_OK) {
+			lprint(std::string("Error _dds_Primary->Flip ") + DDErrorString(hr));
+			return;
+		}
+		/*
+		_epos++;
+		if (_epos >= _bcount) {
+			_epos = 0;
+		}
+		*/
+
+		// hr = this->_dds_Primary->Flip(NULL, 0);
 	}
 	else {
 
@@ -740,6 +1012,9 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 	case WM_ACTIVATE:
 
+		if (_inSwitch) {
+			return 0;
+		}
 		lprint(std::string("WM_ACTIVATE ") + inttostr((void *)wParam) + " " + inttostr((void *)lParam) + " " + (_fullscreen ? "true" : "false") + " " + (_hided ? "true" : "false"));
 
 		if (_fullscreen && wParam == 1 && _hided) {
@@ -806,6 +1081,9 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 	case WM_SIZE:
 		// lprint(std::string("WM_SIZE ") + inttostr((int)wParam))
 		if (!_fullscreen) {
+			if (_inSwitch) {
+				return 0;
+			}
 			if (_hided) {
 				if (wParam == SIZE_RESTORED) {
 					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);

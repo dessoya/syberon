@@ -16,6 +16,8 @@ local Keys = require("Keys")
 
 local MainMenuWindow = require("MainMenuWindow")
 local VideoMenuWindow = require("VideoMenuWindow")
+local InterfaceMenuWindow = require("InterfaceMenuWindow")
+
 
 local Images = { }
 
@@ -30,6 +32,8 @@ function Game:initialize()
 	})
 
 end
+
+
 
 function Game:onStart(hwnd)
 
@@ -50,6 +54,7 @@ function Game:onStart(hwnd)
 
 	self:checkVideoOptions()
 	self:checkKeysOptions()
+	self:checkInterfaceOptions()
 
 	local g = self.optionFile:getGroup("video")
 	if g.fullscreen then
@@ -118,6 +123,26 @@ function Game:checkKeysOptions()
 	self.optionFile:save()
 end
 
+function Game:checkInterfaceOptions()
+	local g = self.optionFile:getGroup("interface")
+	if g == nil then
+		g = { }
+	end
+
+	local default = {
+		centerCamera = false
+	}
+
+	for name, code in pairs(default) do
+		if g[name] == nil then
+			g[name] = code
+		end
+	end
+
+	self.optionFile:setGroup("interface", g)
+	self.optionFile:save()
+end
+
 function Game:checkVideoOptions()
 
 	local g = self.optionFile:getGroup("video")
@@ -172,6 +197,14 @@ function Game:keyUnPressed(key, alt)
 					self.videoMenu = nil
 				end)
 
+			elseif self.interfaceMenu ~= nil then
+
+				self.renderer:modify(function()
+					self.interfaceMenu:del()
+					self.menuIsOpened = false
+					self.interfaceMenu = nil
+				end)
+
 			end
 
 		end
@@ -204,6 +237,17 @@ function Game:openMainMenu()
 			end)
 		end,
 
+		-- interface button
+
+		function()
+			self.renderer:modify(function()
+				self.mainMenu:del()
+				self.menuIsOpened = false
+				self.mainMenu = nil
+				self:openInterfaceMenu()
+			end)
+		end,
+
 		-- play  button
 
 		function()
@@ -212,6 +256,7 @@ function Game:openMainMenu()
 				self.menuIsOpened = false
 				self.mainMenu = nil
 				self.renderer:del(self.background)
+				
 			end)
 			self.gameInProgress = true
 			self.world:create()
@@ -249,11 +294,35 @@ function Game:openVideoMenu()
 
 end
 
+function Game:openInterfaceMenu()
+
+	self.menuIsOpened = true
+
+	self.interfaceMenu = InterfaceMenuWindow:new(
+
+		self.renderer,
+		self.hwnd,
+		self.optionFile,
+
+		function()
+			self.renderer:modify(function()
+				self.interfaceMenu:del()
+				self.menuIsOpened = false
+				self.interfaceMenu = nil
+				self:openMainMenu()
+			end)
+		end
+
+	)
+
+end
+
+
 function Game:onRecreateSurface()
 
 	lprint("recreate surfaces")
-	for key, val in pairs(Images) do
-		C_Image_Restore(val)
+	for name, image in pairs(Images) do
+		C_Image_Restore(image)
 	end
 
 end

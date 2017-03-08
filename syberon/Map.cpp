@@ -45,6 +45,7 @@ Block::Block(lint level, lint x, lint y) : _level(level), _x(x), _y(y) {
 
 Block *Block::getBlock(lint x, lint y) {
 
+	/*
 	{
 		long long x1 = _x - MAP_MID;
 		long long y1 = _y - MAP_MID;
@@ -63,11 +64,12 @@ Block *Block::getBlock(lint x, lint y) {
 
 		lprint(std::string("Block::getBlock ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
 	}
+	*/
 
 
 	auto x1 = (x - _x) >> _m;
 	auto y1 = (y - _y) >> _m;
-	lprint(std::string("Block::getBlock ") + inttostr(_1 << _m) + " " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1));
+	// lprint(std::string("Block::getBlock ") + inttostr(_1 << _m) + " " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1));
 	return _block[x1 + (y1 << B_BITS)];
 }
 
@@ -200,7 +202,27 @@ CellID Map::getCell(lint x, lint y) {
 	auto d = b->_x + (_1 << m);
 
 	if (b->_x > x || b->_y > y || d <= x || d <= y) {
-		lprint(std::string("out of map ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr((void *)d));
+
+		/*
+		long long x1 = x - l->_x;
+		long long y1 = y - l->_y;
+
+		if (x1 < MAP_MID) {
+			x1 = (long long)(MAP_MID - x1) * -1;
+		}
+		else {
+			x1 = x1 - MAP_MID;
+		}
+
+		if (y1 < MAP_MID) {
+			y1 = (long long)(MAP_MID - y1) * -1;
+		}
+		else {
+			y1 = y1 - MAP_MID;
+		}
+		*/
+
+		// lprint(std::string("out of map ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr((void *)d));
 		return ABSENT_CELL;
 	}
 
@@ -221,6 +243,8 @@ CellID Map::getCell(lint x, lint y) {
 	auto bx = x - l->_x;
 	auto by = y - l->_y;
 
+	/*
+
 	long long x1 = x - l->_x;
 	long long y1 = y - l->_y;
 
@@ -240,6 +264,7 @@ CellID Map::getCell(lint x, lint y) {
 
 
 	lprint(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
+	*/
 
 	return l->_block[bx + (by << LB_BITS)];
 }

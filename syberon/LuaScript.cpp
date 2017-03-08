@@ -1,4 +1,3 @@
-
 #include "Utils.h"
 #include "LuaScript.h"
 #include "Logger.h"
@@ -6,17 +5,52 @@
 
 #include "lua.hpp"
 
-std::string lastError;
+#include "logConfig.h"
+
+#ifdef _LOG_LUA_SCRIPT
+#define lprint_LUA_SCRIPT(text) lprint(text)
+#else
+#define lprint_LUA_SCRIPT(text)
+#endif
+
+#ifdef _LOG_LUA_SCRIPT_EF
+#define lprint_LS_EXECUTE_FILE(text) lprint(text)
+#else
+#define lprint_LS_EXECUTE_FILE(text)
+#endif
+
+void _lua_error(lua_State* L, char *buff) {
+
+	std::string s(buff);
+	lua_getglobal(L, "debug");
+	lua_getfield(L, -1, "traceback");
+
+	if (lua_pcall(L, 0, 1, 0)) {
+		const char* err = lua_tostring(L, -1);
+		// lprint(std::string("Error in debug.traceback() call: ") + err + "\n");
+	}
+	else {
+		const char* stackTrace = lua_tostring(L, -1);
+		s += std::string("\n") + stackTrace;
+	}
+
+	lua_pushstring(L, s.c_str());
+	lua_error(L);
+}
 
 int errorHandler(lua_State* L) {
 
 	const char* err = lua_tostring(L, 1);
 
+	lua_getglobal(L, "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
 	if (err != NULL) {
-		lastError = std::string("Error: ") + err;
+		(*lastError) = std::string("Error: ") + err;
 	}
 	else {
-		lastError = "";
+		(*lastError) = "";
 	}
 
 	lua_getglobal(L, "debug");
@@ -28,7 +62,7 @@ int errorHandler(lua_State* L) {
 	}
 	else {
 		const char* stackTrace = lua_tostring(L, -1);
-		lastError += std::string("\n") + stackTrace;
+		(*lastError) += std::string("\n") + stackTrace;
 	}
 
 	// lprint(lastError);
@@ -36,29 +70,87 @@ int errorHandler(lua_State* L) {
 	return 1;
 }
 
-static int luaC_lprint(lua_State *L) {
+int _lua_print(lua_State *L, int log_file) {
 	const char *arg = lua_tostring(L, -1);
-	lprint(arg);
+	std::string p;
+
+	lua_getglobal(L, "debug");
+	lua_getfield(L, -1, "traceback");
+
+	if (lua_pcall(L, 0, 1, 0)) {
+	}
+	else {
+		const char* stackTrace = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		std::string s(stackTrace);
+		/*
+		[2017-03-08 18:04:22] [World             ] stack traceback:
+		[2017-03-08 18:04:22] [World             ] 	[C]: in function 'lprint'
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\World\World.lua"]:56: in function 'cb'
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\World\ImageGetter.lua"]:27: in function 'makeImageRequest'
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\World\ImageGetter.lua"]:41: in function <[string "lua\World\ImageGetter.lua"]:37>
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\MessagePump.lua"]:35: in function 'onWindowMessage'
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\World\World.lua"]:70: in function 'start'
+		[2017-03-08 18:04:22] [World             ] 	[string "lua\World\WorldThread.lua"]:14: in function <[string "lua\World\WorldThread.lua"]:5>
+		*/
+		auto f = s.find("[string \"lua\\", 0);
+		if (f > 0) {
+			auto f2 = s.find("\"]", f);
+			p = s.substr(f + 13, f2 - f - 17);
+
+			auto f3 = s.find(":", f2 + 3);
+			std::string p2 = s.substr(f2 + 3, f3 - f2 - 3);
+
+			char buf[1024];
+			sprintf(buf, "[%-24s%4s] ", p.c_str(), p2.c_str());
+			p = buf;
+		}
+	}
+
+	switch (log_file) {
+	case 0:
+		_lprint(p + arg);
+		break;
+	case 1:
+		_lprint(p + arg);
+		_eprint(p + arg);
+		break;
+	}
 	return 0;
+}
+
+static int luaC_eprint(lua_State *L) {
+
+	// lua_check_args(L, );
+
+	return _lua_print(L, 1);
+}
+
+static int luaC_lprint(lua_State *L) {
+	return _lua_print(L, 0);
 }
 
 static int luaC_executeFile(lua_State *L) {
 
 	std::string filename = std::string("lua\\") + lua_tostring(L, -1);
-	lprint("luaC_executeFile " + filename);
-
-	char *b; int sz;
-
-	
+	char *b; int sz;	
 	File *f = Files_get(&filename.c_str()[4]);
 	if (f) {
-		lprint(std::string("getting file ") + filename + " from data.pack");
+		lprint_LS_EXECUTE_FILE(filename + " from data.pack");
 		b = f->_data;
 		sz = f->_len;
 	}
 	else {
+		lprint_LS_EXECUTE_FILE(filename);
+
 		FILE *f;
 		fopen_s(&f, filename.c_str(), "rb");
+		if (f == NULL) {
+			char buff[1024];
+			sprintf(buff, "luaC_executeFile: Can't open file '%s'", &filename.c_str()[4]);
+			_lua_error(L, buff);
+			return 0;
+		}
 
 		fseek(f, 0, SEEK_END);
 		sz = ftell(f);
@@ -70,19 +162,22 @@ static int luaC_executeFile(lua_State *L) {
 		fclose(f);
 	}
 
-	lastError = "";
+	lua_getglobal(L, "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	(*lastError) = "";
 	lua_pushcfunction(L, errorHandler);
 
 	if (luaL_loadbuffer(L, b, sz, filename.c_str())) {
 		const char *err = lua_tostring(L, -1);
-		lprint(std::string("Syntax error in luaC_loadFile: ") + err);
+		lprint(std::string("Syntax error: ") + err);
 		return luaL_error(L, "%s", err);
 	}
 
 	if (lua_pcall(L, 0, LUA_MULTRET, -2)) {
 		const char *err = lua_tostring(L, -1);
-		lprint(std::string("Exec error in luaC_loadFile: ") + err + lastError);
-		// return lua_error(L);
+		lprint(std::string("Executon error: ") + err + (*lastError));		
 		return 1;
 	}
 
@@ -200,6 +295,10 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 		lprint("luaJIT_setmode error");
 	}
 
+	std::string *_error = new std::string;
+	lua_pushlightuserdata(_l, _error);
+	lua_setglobal(_l , "__error_string");
+
 	luaL_requiref(_l, "_G", luaopen_base, 1);
 	luaL_requiref(_l, LUA_TABLIBNAME, luaopen_table, 1);
 
@@ -208,6 +307,7 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 	
 	luaL_requiref(_l, LUA_DBLIBNAME, luaopen_debug, 1);
 	lua_register(_l, "lprint", luaC_lprint);
+	lua_register(_l, "eprint", luaC_eprint);
 
 	lua_register(_l, "C_ExecuteFile", luaC_executeFile);
 	lua_register(_l, "C_InstallModule", luaC_InstallModule);
@@ -264,12 +364,16 @@ int LuaScript::executeFunction(std::string func, DataList *dl) {
 
 	LuaStackGuard stackGuard(_l);
 
-	lastError = "";
+	lua_getglobal(_l , "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(_l, -1);
+	lua_pop(_l, 1);
+
+	(*lastError) = "";
 	lua_pushcfunction(_l, errorHandler);
 
 	lua_getglobal(_l, func.c_str());
 	if (lua_isfunction(_l, -1) == 0) {
-		lastError = std::string("Error: [") + _filepath + "] can't find function " + func;
+		(*lastError) = std::string("Error: [") + _filepath + "] can't find function " + func;
 		return 1;
 	}
 
@@ -293,18 +397,22 @@ int LuaScript::executeObjectMethod(std::string object, std::string method, DataL
 
 	LuaStackGuard stackGuard(_l);
 
-	lastError = "";
+	lua_getglobal(_l, "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(_l, -1);
+	lua_pop(_l, 1);
+
+	(*lastError) = "";
 	lua_pushcfunction(_l, errorHandler);
 
 	lua_getglobal(_l, object.c_str());
 	if (lua_istable(_l, -1) == 0) {
-		lastError = std::string("Error: [") + _filepath + "] can't find object " + object;
+		(*lastError) = std::string("Error: [") + _filepath + "] can't find object " + object;
 		return 1;
 	}
 
 	lua_getfield(_l, -1, method.c_str());
 	if (lua_isfunction(_l, -1) == 0) {
-		lastError = std::string("Error: [") + _filepath + "] can't execute " + object + ":" + method;
+		(*lastError) = std::string("Error: [") + _filepath + "] can't execute " + object + ":" + method;
 		return 1;
 	}
 
@@ -312,7 +420,7 @@ int LuaScript::executeObjectMethod(std::string object, std::string method, DataL
 
 	lua_getglobal(_l, object.c_str());
 	if (lua_istable(_l, -1) == 0) {
-		lastError = std::string("Error: [") + _filepath + "] can't find object " + object;
+		(*lastError) = std::string("Error: [") + _filepath + "] can't find object " + object;
 		return 1;
 	}
 
@@ -337,5 +445,9 @@ LuaValue *LuaScript::getReturnValue() {
 
 
 std::string LuaScript::getError() {
-	return lastError;
+	lua_getglobal(_l, "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(_l, -1);
+	lua_pop(_l, 1);
+
+	return *lastError;
 }

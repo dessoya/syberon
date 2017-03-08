@@ -54,7 +54,7 @@ function ProgressBar:updateYOffset()
 	end
 end
 
-function ProgressBar:onWMSize(w, h)
+function ProgressBar:onWindowSize(w, h)
 	self.x = w / 2 - self.w / 2
 	self.ry = h / 2 - self.h / 2
 	self:updateProp()

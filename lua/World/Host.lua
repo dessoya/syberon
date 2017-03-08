@@ -18,8 +18,9 @@ function World:initialize(pump, images, hwnd, renderer, optionFile)
 		[WConst.WM.SYSKeyUp]		= "onSysKeyUp",
 		[WConst.WM.KeyDown]			= "onKeyDown",
 		[WConst.WM.KeyUp]			= "onKeyUp",
-		[WConst.WM.Active]			= "onWindowActive"
+		[WConst.WM.Active]			= "onWindowActive",
 
+		[Const.CMD_UpdateOptions]	= "onUpdateOptions"
 	})
 
 	pump:registerReciever(self)
@@ -30,13 +31,32 @@ function World:initialize(pump, images, hwnd, renderer, optionFile)
 	self.interfaceThread:send(Const.CMD_ThreadId, C_PackTable({ world = self.thread.id}))
 	self.thread:send(Const.CMD_ThreadId, C_PackTable({ interface = self.interfaceThread.id}))
 
-	Timer:new(15, function()
+	local g = optionFile:getGroup("interface")
+	self.interfaceThread:send(Const.CMD_UpdateOptions, Const.Options.Interface, C_PackTable(g))
+	self.thread:send(Const.CMD_UpdateOptions, Const.Options.Interface, C_PackTable(g))
+
+
+
+	--[[
+	Timer:new(5, function()
 		self.thread:send(Const.CMD_Timer)
 		self.interfaceThread:send(Const.CMD_Timer)
 	end)
+	]]
 
 	self:sendKeys(optionFile:getGroup("keys"))
 
+end
+
+function World:onUpdateOptions(group, l1, l2, data)
+	lprint("World:onUpdateOptions")
+	local g = C_UnpackTable(data)
+	if self.interfaceThread ~= nil then
+		self.interfaceThread:send(Const.CMD_UpdateOptions, group, C_PackTable(g))
+	end
+	if self.thread ~= nil then
+		self.thread:send(Const.CMD_UpdateOptions, group, C_PackTable(g))
+	end
 end
 
 function World:sendKeys(keys)

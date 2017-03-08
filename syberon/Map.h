@@ -3,7 +3,7 @@
 typedef unsigned long long lint;
 typedef unsigned short int CellID;
 #define ABSENT_CELL 0xffff
-#define MAP_MID 0x8000000000000000
+#define MAP_MID 0x800000000000000
 // #define MAP_MID 0x1000
 
 // #define LB_SIZE 64

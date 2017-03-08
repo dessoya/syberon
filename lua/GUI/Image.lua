@@ -17,7 +17,7 @@ function Image:initialize(x,y,image,sx,sy,sw,sh,useAlpha)
 end
 
 function Image:setProp()
-	C_GUI_Image_setProp(self._ptr, self.x, self.y, self.sx, self.sy, self.sw, self.sh, self.useAlpha)
+	C_GUI_Image_setProp(self._ptr, self.x, self.y, self.image, self.sx, self.sy, self.sw, self.sh, self.useAlpha)
 end
 
 

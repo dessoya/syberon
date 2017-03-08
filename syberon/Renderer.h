@@ -28,7 +28,8 @@ private:
 	RObjectSet *_layers[sizeof(RendererLayer)];
 
 
-	LPDIRECTDRAWSURFACE7 _dds_Primary, _dds_backFullScreen;
+	LPDIRECTDRAWSURFACE7 _dds_Primary;
+
 
 	int _backSurfaceCount, _backSurfaceIndex;
 	LPDIRECTDRAWSURFACE7 *_dds_Back;
@@ -42,7 +43,7 @@ private:
 	DrawMachine *_drawMachine;
 
 	int _fps;
-	bool _fullscreen, _hided, _useBackBuffer;
+	volatile bool _fullscreen, _hided, _useBackBuffer, _inSwitch;
 
 	
 	DWORD _windowStyle;
@@ -52,6 +53,9 @@ private:
 
 
 public:
+
+	int _epos, _bcount;
+	LPDIRECTDRAWSURFACE7 *_dds_backFullScreen;
 
 	int _width, _height, _bpp, _frameTime;
 	

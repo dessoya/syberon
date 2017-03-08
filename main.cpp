@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <eh.h>
+#include <Psapi.h>
 
 #include "syberon\Utils.h"
 
@@ -9,9 +11,80 @@
 // #include "steam_api.h"
 #include "syberon\Map.h"
 
+const char* opDescription(const ULONG opcode) {
+	switch (opcode) {
+	case 0: return "read";
+	case 1: return "write";
+	case 8: return "user-mode data execution prevention (DEP) violation";
+	default: return "unknown";
+	}
+}
+
+const char* seDescription(const int& code) {
+	switch (code) {
+	case EXCEPTION_ACCESS_VIOLATION:         return "EXCEPTION_ACCESS_VIOLATION";
+	case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:    return "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+	case EXCEPTION_BREAKPOINT:               return "EXCEPTION_BREAKPOINT";
+	case EXCEPTION_DATATYPE_MISALIGNMENT:    return "EXCEPTION_DATATYPE_MISALIGNMENT";
+	case EXCEPTION_FLT_DENORMAL_OPERAND:     return "EXCEPTION_FLT_DENORMAL_OPERAND";
+	case EXCEPTION_FLT_DIVIDE_BY_ZERO:       return "EXCEPTION_FLT_DIVIDE_BY_ZERO";
+	case EXCEPTION_FLT_INEXACT_RESULT:       return "EXCEPTION_FLT_INEXACT_RESULT";
+	case EXCEPTION_FLT_INVALID_OPERATION:    return "EXCEPTION_FLT_INVALID_OPERATION";
+	case EXCEPTION_FLT_OVERFLOW:             return "EXCEPTION_FLT_OVERFLOW";
+	case EXCEPTION_FLT_STACK_CHECK:          return "EXCEPTION_FLT_STACK_CHECK";
+	case EXCEPTION_FLT_UNDERFLOW:            return "EXCEPTION_FLT_UNDERFLOW";
+	case EXCEPTION_ILLEGAL_INSTRUCTION:      return "EXCEPTION_ILLEGAL_INSTRUCTION";
+	case EXCEPTION_IN_PAGE_ERROR:            return "EXCEPTION_IN_PAGE_ERROR";
+	case EXCEPTION_INT_DIVIDE_BY_ZERO:       return "EXCEPTION_INT_DIVIDE_BY_ZERO";
+	case EXCEPTION_INT_OVERFLOW:             return "EXCEPTION_INT_OVERFLOW";
+	case EXCEPTION_INVALID_DISPOSITION:      return "EXCEPTION_INVALID_DISPOSITION";
+	case EXCEPTION_NONCONTINUABLE_EXCEPTION: return "EXCEPTION_NONCONTINUABLE_EXCEPTION";
+	case EXCEPTION_PRIV_INSTRUCTION:         return "EXCEPTION_PRIV_INSTRUCTION";
+	case EXCEPTION_SINGLE_STEP:              return "EXCEPTION_SINGLE_STEP";
+	case EXCEPTION_STACK_OVERFLOW:           return "EXCEPTION_STACK_OVERFLOW";
+	default: return "UNKNOWN EXCEPTION";
+	}
+}
+
+void MiniDumpFunction(unsigned int nExceptionCode, EXCEPTION_POINTERS *pException) {
+	// lprint("Exception:");
+
+	HMODULE hm;
+	::GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, static_cast<LPCTSTR>(pException->ExceptionRecord->ExceptionAddress), &hm);
+	MODULEINFO mi;
+	::GetModuleInformation(::GetCurrentProcess(), hm, &mi, sizeof(mi));
+	char fn[MAX_PATH];
+	::GetModuleFileNameExA(::GetCurrentProcess(), hm, fn, MAX_PATH);	
+
+	bool has_exception_code = true;
+	std::ostringstream oss;
+	/*
+	oss << (has_exception_code ? seDescription(nExceptionCode) : "") << " at address 0x" << std::hex << pException->ExceptionRecord->ExceptionAddress << std::dec
+		<< " inside " << fn << " loaded at base address 0x" << std::hex << mi.lpBaseOfDll << "\n";
+	*/
+	oss << (has_exception_code ? seDescription(nExceptionCode) : "") << "\n";
+
+	if (has_exception_code && (
+		nExceptionCode == EXCEPTION_ACCESS_VIOLATION ||
+		nExceptionCode == EXCEPTION_IN_PAGE_ERROR)) {
+		oss << "Invalid operation: " << opDescription(pException->ExceptionRecord->ExceptionInformation[0]) << " at address 0x" << std::hex << pException->ExceptionRecord->ExceptionInformation[1] << std::dec;
+	}
+
+	if (has_exception_code && nExceptionCode == EXCEPTION_IN_PAGE_ERROR) {
+		oss << "Underlying NTSTATUS code that resulted in the exception " << pException->ExceptionRecord->ExceptionInformation[2];
+	}
+
+	lprint(oss.str());
+	// exit(1);
+}
+
 LuaScript *coreScript = NULL;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+
+	_set_se_translator(MiniDumpFunction);
+	try  // this try block allows the SE translator to work
+	{
 
 	if (coreScript) {
 		if (coreScript->executeObjectMethod("game", "_onWindowMessage", 
@@ -56,33 +129,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
+	}
+	catch (...)
+	{
+		return -1;
+	}
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
+
+	_set_se_translator(MiniDumpFunction);
+	try  // this try block allows the SE translator to work
+	{
 
 	timeBeginPeriod(1);
 
 #ifdef _DEBUG_LOGGER
 	Logger::setupLogFilepath(0, "debug.log");
+	Logger::setupLogFilepath(1, "error.log");
 	Logger::setThreadName("main");
 #endif
 
-	lprint("\n\nstarted");
-
-	// auto m = new Map();
-	// m->trace_coords(0, 0);
 	/*
-	lprint(std::string("cell 0x0 ") + inttostr((void *)m->getCell(0,0)));
-	m->addBlock(2000, 2000);
-	lprint(std::string("cell 0x0 ") + inttostr((void *)m->getCell(2000, 2000)));
+	Files_openPack("data.pack");
+	Files_loadPack("lua.pack");
 	*/
-	// m->addBlock(0, 0);
 
 #ifdef _DEBUG
-	if (0) {
-		Files_openPack("data.pack");
-		Files_loadPack("lua.pack");
-	}
 #else
 	Files_openPack("data.pack");
 	Files_loadPack("lua.pack");
@@ -140,4 +213,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	}
 
 	return (int)msg.wParam;
+	}
+	catch (...)
+	{
+		return -1;
+	}
 }

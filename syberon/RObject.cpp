@@ -117,11 +117,12 @@ void RImage::draw(DrawMachine *dm) {
 	dm->DrawImage(_image, _x, _y, _sx, _sy, _sw, _sh, _useAlpha);
 }
 
-void RImage::setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha) {
+void RImage::setProp(int x, int y, Image *image, int sx, int sy, int sw, int sh, bool useAlpha) {
 	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
 
 	_x = x;
 	_y = y;
+	_image = image;
 	_sx = sx;
 	_sy = sy;
 	_sw = sw;
@@ -137,16 +138,23 @@ void RImage::setProp(int x, int y, int sx, int sy, int sw, int sh, bool useAlpha
 char *bline = NULL;
 char *gline = NULL;
 
+void _memset(char *b, DWORD c, int l) {
+	DWORD *d = (DWORD *)b;
+	while (l--) {
+		*d = c;
+		d++;
+	}
+}
 RMap::RMap(Map *map, int w, int h) : _worldMap(map), _cw(w), _ch(h) {
 
 	if (bline == NULL) {
 		bline = new char[4 * 256];
-		memset(bline, 0xff000000, 256);
+		_memset(bline, 0x00000000, 256);
 	}
 
 	if (gline == NULL) {
 		gline = new char[4 * 256];
-		memset(bline, 0xff303030, 256);
+		_memset(gline, 0x00303030, 256);
 	}
 
 	_map = new CellID[MAP_W * MAP_H];
@@ -169,17 +177,46 @@ void RMap::setupCellImage(CellID id, Image *image, int x, int y) {
 }
 
 void RMap::setupViewSize(int w, int h) {
-	
+
 	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
 
 	_vw = w;
 	_vh = h;
+
+	_loadFromWorldMap();
+}
+
+void RMap::_loadFromWorldMap() {
 
 	// lets load from worldmap
 	for (lint y = 0; y < _vh; y++) {
 		for (lint x = 0; x < _vw; x++) {
 			_map[x + y * MAP_W] = _worldMap->getCell(_mx + x, _my + y);
 		}
+	}
+}
+
+
+void RMap::setCoors(long long x, long long y) {
+	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
+	_ox = x % _cw;
+	_oy = y % _ch;
+	auto _tmx = x / _cw;
+	auto _tmy = y / _ch;
+	if (_ox < 0) {
+		_ox += _cw;
+		_tmx--;
+	}
+	if (_oy < 0) {
+		_oy += _ch;
+		_tmy--;
+	}
+	lprint(std::string("RMap::setCoors ") + inttostr(x) + " " + inttostr(y));
+	lprint(std::string("RMap::setCoors ") + inttostr(_ox) + " " + inttostr(_oy) + " " + inttostr(_tmx) + " " + inttostr(_tmy));
+	if (_tmx != _mx || _tmy != _my) {
+		_mx = _tmx;
+		_my = _tmy;
+		_loadFromWorldMap();
 	}
 }
 
@@ -197,7 +234,8 @@ void RMap::draw(DrawMachine *dm) {
 
 	for (int y = 0; y < _vh; y++) {
 
-		int ty = y * _ch;
+		int ty = y * _ch - _oy;
+
 		if (ty >= dm->_height) break;
 
 		auto c = &_map[MAP_W * y];
@@ -214,7 +252,7 @@ void RMap::draw(DrawMachine *dm) {
 
 			bool _add = true;
 
-			int tx = x * _cw;
+			int tx = x * _cw - _ox;
 			if (tx >= dm->_width) break;
 			
 
@@ -234,54 +272,58 @@ void RMap::draw(DrawMachine *dm) {
 				auto i = &_images[cid];
 				auto image = i->image;
 				l3 = image->_width;
-				imageLine = (DWORD *)&image->_data[(i->y * image->_width + i->x) * 4];
+				auto xo = 0, yo = 0;
+				if (tx < 0) {
+					xo = tx;
+				}
+				if (ty < 0) {
+					yo = ty;
+				}
+				imageLine = (DWORD *)&image->_data[((i->y - yo) * image->_width + i->x - xo) * 4];
 			}
 
-			auto sLine = &p[ty * l + tx * 4];
-
+			// fix tx and l1
 			int l1 = _cw;
+			if (tx < 0) {
+				l1 += tx;
+				tx = 0;
+			}
+
 			if (tx + l1 > dm->_width) {
 				l1 = _cw - ((tx + l1) - dm->_width);
 			}
 
 			int l11 = _ch;
+			if (ty < 0) {
+				l11 += ty;
+				/*
+				if (_add) {
+					imageLine -= l3 * ty;
+				}
+				*/
+				// ty = 0;
+			}
+
 			if (ty + l11 > dm->_height) {
 				l11 = _ch - ((ty + l11) - dm->_height);
 			}
 
+			auto sLine = &p[(ty < 0 ? 0 : ty) * l + tx * 4];
+
 			for (int y1 = 0; y1 < l11; y1++) {
-
-				// if (ty + y1 >= dm->_height) break;
-
-
-				// if (l1 < 1) break;
 
 				DWORD *imageLine1 = imageLine;
 				DWORD *sLine1 = (DWORD *)sLine;
 
 				memcpy(sLine, imageLine, l1 * 4);
 
-				/*
-				for (int x1 = 0; x1 < l1; x1++) {
-
-					*sLine1 = *imageLine1;
-
-					sLine1 ++;
-					imageLine1 ++;
-
-				}
-				*/
-
 				if (_add) {
 					imageLine += l3;
 				}
 				sLine += l;
-
 			}
-
 			c++;
 		}
-
 	}
 
 	dm->unlockDDS();

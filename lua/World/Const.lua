@@ -10,7 +10,12 @@ local Const = {
 	CMD_AddObject	= 0x436,
 	CMD_Timer		= 0x437,
 	CMD_Keys		= 0x438,
-	CMD_UpdateObject= 0x439
+	CMD_UpdateObject= 0x439,
+	CMD_UpdateOptions= 0x43a
+}
+
+Const.Options = {
+	Interface = 1
 }
 
 return Const 

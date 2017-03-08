@@ -424,18 +424,23 @@ static int luaC_GUI_Image_New(lua_State *L) {
 
 static int luaC_GUI_Image_setProp(lua_State *L) {
 
-	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto ud = (UserData *)lua_touserdata(L, 1);
 	auto i = (RImage *)ud->data;
 
 	auto x = lua_tointeger(L, 2);
 	auto y = lua_tointeger(L, 3);
-	auto sx = lua_tointeger(L, 4);
-	auto sy = lua_tointeger(L, 5);
-	auto sw = lua_tointeger(L, 6);
-	auto sh = lua_tointeger(L, 7);
+
+	ud = (UserData *)lua_touserdata(L, 4);
+	auto image = (Image *)ud->data;
+
+
+	auto sx = lua_tointeger(L, 5);
+	auto sy = lua_tointeger(L, 6);
+	auto sw = lua_tointeger(L, 7);
+	auto sh = lua_tointeger(L, 8);
 	auto useAlpha = lua_toboolean(L, 8);
 
-	i->setProp(x, y, sx, sy, sw, sh, useAlpha);
+	i->setProp(x, y, image, sx, sy, sw, sh, useAlpha);
 
 	return 0;
 }
@@ -489,6 +494,19 @@ static int luaC_GUI_Map_setupViewSize(lua_State *L) {
 	return 0;
 }
 
+static int luaC_GUI_Map_setCoords(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	auto x = lua_tointeger(L, 2);
+	auto y = lua_tointeger(L, 3);
+
+	m->setCoors(x, y);
+
+	return 0;
+}
+
 
 void lm_Renderer_install(lua_State* _l) {
 
@@ -533,6 +551,8 @@ void lm_Renderer_install(lua_State* _l) {
 	lua_register(_l, "C_GUI_Map_New", luaC_GUI_Map_New);
 	lua_register(_l, "C_GUI_Map_setupCellImage", luaC_GUI_Map_setupCellImage);
 	lua_register(_l, "C_GUI_Map_setupViewSize", luaC_GUI_Map_setupViewSize);
+	lua_register(_l, "C_GUI_Map_setCoords", luaC_GUI_Map_setCoords);
+	
 	
 }
 

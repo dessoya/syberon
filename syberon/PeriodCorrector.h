@@ -24,6 +24,7 @@ public:
 
 	void startPeriod();
 	void endPeriod();
+	void afterDraw();
 
 	void setPeriodsPerSecond(int periods);
 };
@@ -34,4 +35,14 @@ public:
 	LARGE_INTEGER _startPeriod;
 	TimeCalc() { QueryPerformanceCounter(&_startPeriod); }
 	long get() { LARGE_INTEGER _endPeriod; QueryPerformanceCounter(&_endPeriod); return _endPeriod.QuadPart - _startPeriod.QuadPart;  };
+	double micro(long l) {
+		LARGE_INTEGER f;
+		QueryPerformanceFrequency(&f);
+
+		double ms = (double)l;
+		ms *= (double)1000000;
+		ms /= (double)f.QuadPart;
+
+		return ms;
+	}
 };
