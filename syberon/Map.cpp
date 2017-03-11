@@ -4,11 +4,18 @@
 #include "Logger.h"
 #include "Utils.h"
 
+#include "logConfig.h"
+#ifdef _LOG_MAP
+#define lprint_MAP(text) lprint(text)
+#else
+#define lprint_MAP(text)
+#endif
+
 #define _1 ((unsigned long long)1)
 
 LastBlock::LastBlock(lint x, lint y) : _x(x), _y(y) {
-	_block = new CellID[1 << (LB_BITS + LB_BITS)];
-	memset(_block, 0, (1 << (LB_BITS + LB_BITS)) * sizeof(CellID));
+	_block = new CellID[1 << (B_BITS + B_BITS)];
+	memset(_block, 0, (1 << (B_BITS + B_BITS)) * sizeof(CellID));
 }
 
 /*
@@ -31,7 +38,7 @@ int intpow(int x, int y) {
 
 Block::Block(lint level, lint x, lint y) : _level(level), _x(x), _y(y) {
 
-	_m = (level - 1) * B_BITS + LB_BITS;
+	_m = level * B_BITS;
 
 	if (_level == 1) {
 		_lblock = new PLastBlock[1 << (B_BITS + B_BITS)];
@@ -62,14 +69,19 @@ Block *Block::getBlock(lint x, lint y) {
 		long long y2 = y1 + d;
 
 
-		lprint(std::string("Block::getBlock ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
+		lprint_MAP(inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
 	}
 	*/
 
-
-	auto x1 = (x - _x) >> _m;
-	auto y1 = (y - _y) >> _m;
-	// lprint(std::string("Block::getBlock ") + inttostr(_1 << _m) + " " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1));
+	lint x1 = (lint(x - _x)) >> (lint)_m;
+	lint y1 = (lint(y - _y)) >> (lint)_m;
+/*
+	lint x1 = (lint(x - _x));
+	x1 /= (_1 << (lint)_m);
+	lint y1 = (lint(y - _y));
+	y1 /= (_1 << (lint)_m);
+*/
+	// lprint_MAP(inttostr(_1 << _m) + " " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + "x" + inttostr(y1));
 	return _block[x1 + (y1 << B_BITS)];
 }
 
@@ -78,10 +90,33 @@ Block *Block::addBlock(lint x, lint y) {
 	auto x1 = (x - _x) >> _m;
 	auto y1 = (y - _y) >> _m;
 
+	lprint_MAP(inttostr(_1 << _m) + " " + inttostr(x1) + "x" + inttostr(y1));
+
 	if (_level == 1) {
 		return (Block *)(_lblock[x1 + (y1 << B_BITS)] = new LastBlock((x1 << _m) + _x, (y1 << _m) + _y));
 	}
 	return _block[x1 + (y1 << B_BITS)] = new Block(_level - 1, (x1 << _m) + _x, (y1 << _m) + _y);
+}
+
+void Block::dump(std::string *l) {
+	if (l == NULL) {
+		l = new std::string;
+	}
+	lprint_MAP((*l) + "level " + inttostr(_level) + " m " + inttostr(_m) + " x " + inttostr(_x) + " y " + inttostr(_y) + " size " + inttostr(_x + (_1 << (_m + B_BITS))) + "x" + inttostr(_y + (_1 << (_m + B_BITS))));
+	if (_level == 1) return;
+	std::string *ln = new std::string(*l);
+	(*ln) += "  ";
+	
+	int d = _1 << B_BITS;
+	for (int y = 0; y < d; y++) {
+		for (int x = 0; x < d; x++) {
+			auto b = _block[x + (y << B_BITS)];
+			if (b) {
+				lprint_MAP((*l) + "cell x " + inttostr(x) + " y " + inttostr(y));
+				b->dump(ln);
+			}
+		}
+	}
 }
 
 
@@ -92,11 +127,18 @@ Block *Block::addBlock(lint x, lint y) {
 Map::Map() {
 	_level = 1;
 
-	auto d = (1 << (B_BITS - 1 + LB_BITS));
+	// auto d = (1 << (B_BITS - 1 + B_BITS));
 
-	_root = new Block(_level, MAP_MID - d, MAP_MID - d);
-	_m = LB_BITS + B_BITS;
+	_root = new Block(_level, MAP_MID, MAP_MID);
+	_m = B_BITS + B_BITS;
 	
+}
+
+void Map::dump() {
+	lprint_MAP("\n-------------------\n");
+	lprint_MAP("B_BITS " + inttostr(B_BITS) + " size " + inttostr(_1 << B_BITS));
+	_root->dump();
+	lprint_MAP("\n-------------------\n");
 }
 
 void Map::trace_coords(lint x, lint y) {
@@ -112,11 +154,11 @@ void Map::trace_coords(lint x, lint y) {
 	auto d = b->_x + (_1 << m);
 
 	if (b->_x > x || b->_y > y || d <= x || d <= y) {
-		lprint(std::string("out of map ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr(d));
+		lprint_MAP("out of map " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr(d));
 		return;
 	}
 
-	lprint(std::string("map bound ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr(d));
+	lprint_MAP("map bound " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr(d));
 
 	while (level > 0) {
 
@@ -124,27 +166,29 @@ void Map::trace_coords(lint x, lint y) {
 		auto bx = (x - b->_x) >> _m;
 		auto by = (y - b->_y) >> _m;
 
-		lprint(std::string("level ") + inttostr(level) + " bx " + inttostr(bx - MAP_MID) + " by " + inttostr(by - MAP_MID));
+		lprint_MAP("level " + inttostr(level) + " bx " + inttostr(bx - MAP_MID) + " by " + inttostr(by - MAP_MID));
 
 		level--;
 	}
 
 }
 
-void Map::setCell(lint x, lint y, CellID id) {
+void Map::setCell(long long __x, long long __y, CellID id) {
 
-	// level
-	x += MAP_MID;
-	y += MAP_MID;
+	// lprint_MAP("x " + inttostr(__x) + " y " + inttostr(__y));
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
 
 	auto level = _level;
 	auto b = _root;
 	auto m = _m;
 
-	auto d = b->_x + (_1 << m);
+	auto dx = b->_x + (_1 << m);
+	auto dy = b->_y + (_1 << m);
 
-	if (b->_x > x || b->_y > y || d <= x || d <= y) {
-		lprint(std::string("out of map ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID) + " " + inttostr((void *)d));
+	if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+		// lprint_MAP(std::string("out of map ") + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(b->_x - MAP_MID) + " " + inttostr(b->_y - MAP_MID));
 		return;
 	}
 
@@ -165,6 +209,7 @@ void Map::setCell(lint x, lint y, CellID id) {
 	auto bx = x - l->_x;
 	auto by = y - l->_y;
 
+	/*
 	long long x1 = x - l->_x;
 	long long y1 = y - l->_y;
 
@@ -183,25 +228,28 @@ void Map::setCell(lint x, lint y, CellID id) {
 	}
 
 
-	lprint(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
+	lprint_MAP(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
+	*/
 
-	l->_block[bx + (by << LB_BITS)] = id;
+	l->_block[bx + (by << B_BITS)] = id;
 }
 
 
-CellID Map::getCell(lint x, lint y) {
+CellID Map::getCell(long long __x, long long __y) {
 
-	// level
-	x += MAP_MID;
-	y += MAP_MID;
+	// lprint_MAP("x " + inttostr(__x) + " y " + inttostr(__y));
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
 
 	auto level = _level;
 	auto b = _root;
 	auto m = _m;
 
-	auto d = b->_x + (_1 << m);
+	auto dx = b->_x + (_1 << m);
+	auto dy = b->_y + (_1 << m);
 
-	if (b->_x > x || b->_y > y || d <= x || d <= y) {
+	if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
 
 		/*
 		long long x1 = x - l->_x;
@@ -266,48 +314,58 @@ CellID Map::getCell(lint x, lint y) {
 	lprint(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
 	*/
 
-	return l->_block[bx + (by << LB_BITS)];
+	return l->_block[bx + (by << B_BITS)];
 }
 
-void Map::addBlock(lint x, lint y) {
 
-	// 
-	// level
-	x += MAP_MID;
-	y += MAP_MID;
+void Map::addSetCell(long long __x, long long __y, CellID id) {
 
-	auto level = _level;
+	// lprint_MAP("x " + inttostr(__x) + " y " + inttostr(__y));
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
+
+	lint level = _level;
 	auto b = _root;
-	auto m = _m;
+	lint m = _m;
 
-	
+
 	while (true) {
-		auto d = b->_x + (_1 << m);
+		lint dx = b->_x + (_1 << m);
+		lint dy = b->_y + (_1 << m);
 
+		/*
 		long long x1 = b->_x - MAP_MID;
 		long long y1 = b->_y - MAP_MID;
 		if (b->_x < MAP_MID) {
-			x1 = (long long)(MAP_MID - b->_x) * -1;
+		x1 = (long long)(MAP_MID - b->_x) * -1;
 		}
 		if (b->_y < MAP_MID) {
-			y1 = (long long)(MAP_MID - b->_y) * -1;
+		y1 = (long long)(MAP_MID - b->_y) * -1;
 		}
-		lprint(std::string("Map::addBlock ") + inttostr(level) + " " + inttostr(x - MAP_MID) + "x" + inttostr(y - MAP_MID) + " " + inttostr(x1) + " " + inttostr(y1) + " " + inttostr(d - MAP_MID));
 
-		if (b->_x > x || b->_y > y || d <= x || d <= y) {
-			lprint("out of bound");
+		long long x2 = dx - MAP_MID;
+		if (dx < MAP_MID) {
+		(long long)(MAP_MID - dx) * -1;
+		}
+		long long y2 = dy - MAP_MID;
+		if (dy < MAP_MID) {
+		(long long)(MAP_MID - dy) * -1;
+		}
+		lprint_MAP("check bound level " + inttostr(level) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
+		*/
+
+		if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+			// lprint_MAP("out of bound");
 			level++;
 			_level++;
 
-			auto e = (_1 << ((B_BITS  * (level - 1)) - 1 + LB_BITS));
-			auto e2 = (_1 << ((B_BITS  * level) - 1 + LB_BITS));
-
-			e = e2 - e;
+			auto e = (_1 << ((B_BITS * level) - 1 + B_BITS));
 
 			_m += B_BITS;
 			m += B_BITS;
 
-			_root = new Block(level, b->_x - e, b->_y - e);
+			_root = new Block(level, MAP_MID - e, MAP_MID - e);
 
 			// place b at B_BITS >> 1
 			auto x1 = _1 << (B_BITS >> 1);
@@ -322,10 +380,123 @@ void Map::addBlock(lint x, lint y) {
 
 	while (level > 0 && b) {
 
+		/*
 		auto bx = (x - b->_x) >> m;
 		auto by = (y - b->_y) >> m;
 
-		// lprint(std::string("level ") + inttostr(level) + " bx " + inttostr(bx) + " by " + inttostr(by));
+		lprint_MAP(std::string("level ") + inttostr(level) + " bx " + inttostr(bx) + " by " + inttostr(by));
+		*/
+		auto bb = b;
+		b = b->getBlock(x, y);
+
+		if (b == NULL) {
+			b = bb->addBlock(x, y);
+		}
+
+		level--;
+	}
+
+	LastBlock *l = (LastBlock *)b;
+
+	auto bx = x - l->_x;
+	auto by = y - l->_y;
+
+	/*
+	long long x1 = x - l->_x;
+	long long y1 = y - l->_y;
+
+	if (x1 < MAP_MID) {
+	x1 = (long long)(MAP_MID - x1) * -1;
+	}
+	else {
+	x1 = x1 - MAP_MID;
+	}
+
+	if (y1 < MAP_MID) {
+	y1 = (long long)(MAP_MID - y1) * -1;
+	}
+	else {
+	y1 = y1 - MAP_MID;
+	}
+
+
+	lprint_MAP(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
+	*/
+
+	l->_block[bx + (by << B_BITS)] = id;
+
+
+}
+
+
+void Map::addBlock(long long __x, long long __y) {
+
+	// lprint_MAP("x " + inttostr(__x) + " y " + inttostr(__y));
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
+ 
+	lint level = _level;
+	auto b = _root;
+	lint m = _m;
+
+	
+	while (true) {
+		lint dx = b->_x + (_1 << m);
+		lint dy = b->_y + (_1 << m);
+
+		/*
+		long long x1 = b->_x - MAP_MID;
+		long long y1 = b->_y - MAP_MID;
+		if (b->_x < MAP_MID) {
+			x1 = (long long)(MAP_MID - b->_x) * -1;
+		}
+		if (b->_y < MAP_MID) {
+			y1 = (long long)(MAP_MID - b->_y) * -1;
+		}
+
+		long long x2 = dx - MAP_MID;
+		if (dx < MAP_MID) {
+			(long long)(MAP_MID - dx) * -1;
+		}
+		long long y2 = dy - MAP_MID;
+		if (dy < MAP_MID) {
+			(long long)(MAP_MID - dy) * -1;
+		}
+		lprint_MAP("check bound level " + inttostr(level) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
+		*/
+
+		if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+			// lprint_MAP("out of bound");
+			level++;
+			_level++;
+
+			auto e = (_1 << ((B_BITS * level) - 1 + B_BITS));
+			
+			_m += B_BITS;
+			m += B_BITS;
+
+			_root = new Block(level, MAP_MID - e, MAP_MID - e);
+
+			// place b at B_BITS >> 1
+			auto x1 = _1 << (B_BITS >> 1);
+			_root->_block[x1 + (x1 << B_BITS)] = b;
+
+			b = _root;
+
+			continue;
+		}
+		break;
+	}
+
+	while (level > 0 && b) {
+
+		/*
+		auto bx = (x - b->_x) >> m;
+		auto by = (y - b->_y) >> m;
+
+		lprint_MAP(std::string("level ") + inttostr(level) + " bx " + inttostr(bx) + " by " + inttostr(by));
+		*/
 		auto bb = b;
 		b = b->getBlock(x, y);
 

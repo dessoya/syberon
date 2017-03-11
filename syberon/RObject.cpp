@@ -2,6 +2,12 @@
 #include "Utils.h"
 #include "Logger.h"
 
+#include "logConfig.h"
+#ifdef _LOG_ROBJECT
+#define lprint_ROBJECT(text) lprint(text)
+#else
+#define lprint_ROBJECT(text)
+#endif
 int RObjectIterator = 1;
 
 RObject::RObject() {
@@ -145,7 +151,9 @@ void _memset(char *b, DWORD c, int l) {
 		d++;
 	}
 }
-RMap::RMap(Map *map, int w, int h) : _worldMap(map), _cw(w), _ch(h) {
+RMap::RMap(Map *map, int scales, int cells) : _worldMap(map), _scales(scales), _cells(cells) {
+
+	_vwp = _vhp = _mxp = _myp = 0;
 
 	if (bline == NULL) {
 		bline = new char[4 * 256];
@@ -156,6 +164,8 @@ RMap::RMap(Map *map, int w, int h) : _worldMap(map), _cw(w), _ch(h) {
 		gline = new char[4 * 256];
 		_memset(gline, 0x00303030, 256);
 	}
+	
+	_scaleInfo = new ScaleInfo[_scales];
 
 	_map = new CellID[MAP_W * MAP_H];
 	memset(_map, 0, sizeof(CellID) * MAP_W * MAP_H);
@@ -163,30 +173,70 @@ RMap::RMap(Map *map, int w, int h) : _worldMap(map), _cw(w), _ch(h) {
 	_vw = 3; _ox = 0; _mx = 0;
 	_vh = 3; _oy = 0; _my = 0;
 
-	_images = new CellInfo[MAX_CELLS];
-	memset(_images, 0, sizeof(CellInfo) * MAX_CELLS);
+	_images = new PCellInfo[_scales];
+
+	for (int i = 0; i < _scales; i++) {
+		_images[i] = new CellInfo[_cells];
+		memset(_images[i], 0, sizeof(CellInfo) * _cells);
+	}
 
 }
 
-void RMap::setupCellImage(CellID id, Image *image, int x, int y) {
+#define CELL_SIZE 1024
+#define CELL_BITS 10
 
-	_images[id].image = image;
-	_images[id].x = x;
-	_images[id].y = y;
+void RMap::setScaleInfo(int s, int w, int h) {
+	_scaleInfo[s].w = w;
+	_scaleInfo[s].h = h;
+	_scaleInfo[s].k = (double)CELL_SIZE / (double)w;
+}
+
+void RMap::setScale(int s) {
+	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
+	_curScale = s;
+
+	setupViewSize(_vwp, _vhp, false);
+	setCoors(_mxp, _myp, false);
 
 }
 
-void RMap::setupViewSize(int w, int h) {
+
+void RMap::setupCellImage(int s, CellID id, Image *image, int x, int y) {
+
+	_images[s][id].image = image;
+	_images[s][id].x = x;
+	_images[s][id].y = y;
+
+}
+
+void RMap::setupViewSize(int w, int h, bool lock) {
+
+	boost::unique_lock<boost::mutex> *scoped_lock;
+	if(lock) scoped_lock = new boost::unique_lock<boost::mutex>(_propMutex);
+
+	_vwp = w;
+	_vhp = h;
+
+	_vw = w / _scaleInfo[_curScale].w + 2;
+	_vh = h / _scaleInfo[_curScale].h + 2;
+
+	// lprint("w " + inttostr(_vw) + " h " + inttostr(_vh));
+
+	_loadFromWorldMap();
+
+	if (lock) delete scoped_lock;
+}
+
+void RMap::updateCells() {
 
 	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
-
-	_vw = w;
-	_vh = h;
 
 	_loadFromWorldMap();
 }
 
 void RMap::_loadFromWorldMap() {
+
+	// lprint("x " + inttostr(_mx) + " y " + inttostr(_mx) + " w " + inttostr(_vw) + " h " + inttostr(_vh));
 
 	// lets load from worldmap
 	for (lint y = 0; y < _vh; y++) {
@@ -197,27 +247,38 @@ void RMap::_loadFromWorldMap() {
 }
 
 
-void RMap::setCoors(long long x, long long y) {
-	boost::unique_lock<boost::mutex> scoped_lock(_propMutex);
-	_ox = x % _cw;
-	_oy = y % _ch;
-	auto _tmx = x / _cw;
-	auto _tmy = y / _ch;
+void RMap::setCoors(long long x, long long y, bool lock) {
+	boost::unique_lock<boost::mutex> *scoped_lock;
+	if (lock) scoped_lock = new boost::unique_lock<boost::mutex>(_propMutex);
+
+	_mxp = x;
+	_myp = y;
+
+	auto s = &_scaleInfo[_curScale];
+	x = ((double)x / s->k);
+	y = ((double)y / s->k);
+	_ox = x % s->w;
+	_oy = y % s->h;
+
+	auto _tmx = x / s->w;
+	auto _tmy = y / s->h;
 	if (_ox < 0) {
-		_ox += _cw;
+		_ox += s->w;
 		_tmx--;
 	}
 	if (_oy < 0) {
-		_oy += _ch;
+		_oy += s->h;
 		_tmy--;
 	}
-	lprint(std::string("RMap::setCoors ") + inttostr(x) + " " + inttostr(y));
-	lprint(std::string("RMap::setCoors ") + inttostr(_ox) + " " + inttostr(_oy) + " " + inttostr(_tmx) + " " + inttostr(_tmy));
+	lprint_ROBJECT(std::string("RMap::setCoors ") + inttostr(x) + " " + inttostr(y));
+	lprint_ROBJECT(std::string("RMap::setCoors ") + inttostr(_ox) + " " + inttostr(_oy) + " " + inttostr(_tmx) + " " + inttostr(_tmy));
 	if (_tmx != _mx || _tmy != _my) {
 		_mx = _tmx;
 		_my = _tmy;
 		_loadFromWorldMap();
 	}
+
+	if (lock) delete scoped_lock;
 }
 
 void RMap::draw(DrawMachine *dm) {
@@ -228,6 +289,10 @@ void RMap::draw(DrawMachine *dm) {
 
 	unsigned char *p = dm->_surface;
 	long l = dm->_pitch;
+
+	auto s = &_scaleInfo[_curScale];
+	_cw = s->w;
+	_ch = s->h;
 
 	// long l2 = l / 4;
 	// lprint(std::string("l ") + inttostr(l) + " l2 " + inttostr(l2));
@@ -269,7 +334,7 @@ void RMap::draw(DrawMachine *dm) {
 				}
 			}
 			else {
-				auto i = &_images[cid];
+				auto i = &_images[_curScale][cid];
 				auto image = i->image;
 				l3 = image->_width;
 				auto xo = 0, yo = 0;

@@ -5,6 +5,14 @@
 #include "Image.h"
 #include "Utils.h"
 
+#include "logConfig.h"
+#ifdef _LOG_RENDERER
+#define lprint_RENDERER(text) lprint(text)
+#else
+#define lprint_RENDERER(text)
+#endif
+
+
 extern void MiniDumpFunction(unsigned int nExceptionCode, EXCEPTION_POINTERS *pException);
 
 #define DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
@@ -139,7 +147,7 @@ void Renderer::saveWindowedState() {
 	_monitorModeInfo.dwSize = sizeof(_monitorModeInfo);
 	HRESULT hr = _dd->GetDisplayMode(&_monitorModeInfo);
 	if (FAILED(hr)) {
-		lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
+		eprint("Error: GetDisplayMode " + DDErrorString(hr));
 		return;
 	}
 
@@ -147,12 +155,14 @@ void Renderer::saveWindowedState() {
 
 void Renderer::releaseAllSurfaces() {
 
-	lprint("Renderer::releaseAllSurfaces");
+	lprint_RENDERER("");
 
 	if (_dds_backFullScreen) {
 		for (int i = 0; i < _bcount; i++) {
-			// _dds_backFullScreen->Release();
-			_dds_backFullScreen[i] = NULL;
+			if (_dds_backFullScreen[i]) {
+				_dds_backFullScreen[i]->Release();
+				_dds_backFullScreen[i] = NULL;
+			}
 		}
 	}
 
@@ -183,7 +193,7 @@ HRESULT WINAPI _EnumSurfacesCallback7(
 	// if(lpDDSurfaceDesc->dwFlags & DDSCAPS2_)
 	r->_dds_backFullScreen[r->_epos] = lpDDSurface;
 	r->_epos++;
-	lprint(std::string("_EnumSurfacesCallback7 ") + inttostr((void *)lpDDSurfaceDesc->dwFlags));
+	lprint_RENDERER(inttostr((void *)lpDDSurfaceDesc->dwFlags));
 	return DDENUMRET_OK;
 }
 
@@ -197,14 +207,14 @@ public:
 
 void Renderer::switchToFullscreen() {
 
-	lprint("before GetDisplayMode");
+	lprint_RENDERER("before GetDisplayMode");
 	DDSURFACEDESC2 _curmonitorModeInfo;
 	memset(&_curmonitorModeInfo, 0, sizeof(_curmonitorModeInfo));
 	_curmonitorModeInfo.dwSize = sizeof(_curmonitorModeInfo);
 	HRESULT hr = _dd->GetDisplayMode(&_curmonitorModeInfo);
-	lprint("after GetDisplayMode");
+	lprint_RENDERER("after GetDisplayMode");
 	if (FAILED(hr)) {
-		lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
+		eprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
 	}
 
 
@@ -238,21 +248,21 @@ void Renderer::switchToFullscreen() {
 		}
 		else {
 			// lprint(std::string("_thread_enableFullScreen SetDisplayMode"));
-			lprint("before SetDisplayMode");
+			lprint_RENDERER("before SetDisplayMode");
 			hr = _dd->SetDisplayMode(_fullscreenW, _fullscreenH, 32, 0, 0);
-			lprint("after SetDisplayMode");
+			lprint_RENDERER("after SetDisplayMode");
 			if (FAILED(hr)) {
-				lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
+				eprint("Error: SetDisplayMode " + DDErrorString(hr));
 			}
 		}
 
 
-		lprint("Renderer::switchToFullscreen createSurface");
+		lprint_RENDERER("createSurface");
 
 		DDSURFACEDESC2 ddsd;
 		DDSCAPS2 ddsd2;
 
-		_bcount = 8;
+		_bcount = 2;
 		memset(&ddsd, 0, sizeof(ddsd));
 		ddsd.dwSize = sizeof(ddsd);
 
@@ -261,9 +271,9 @@ void Renderer::switchToFullscreen() {
 		// ddsd.ddsCaps.dwCaps2 = DDCAPS2_FLIPNOVSYNC;
 		ddsd.dwBackBufferCount = _bcount;
 
-		lprint("before CreateSurface _dds_Primary");
+		lprint_RENDERER("before CreateSurface _dds_Primary");
 		hr = _dd->CreateSurface(&ddsd, &_dds_Primary, NULL);
-		lprint("after CreateSurface _dds_Primary");
+		lprint_RENDERER("after CreateSurface _dds_Primary");
 		if (FAILED(hr)) {
 			lprint(std::string("Error: CreateSurface ") + DDErrorString(hr));
 			// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
@@ -281,68 +291,9 @@ void Renderer::switchToFullscreen() {
 
 		hr = _dd->CreateSurface(&ddsd, &_dds_backFullScreen[0], NULL);
 		if (FAILED(hr)) {
-			lprint(std::string("error createBackSurface ") + DDErrorString(hr));
+			eprint("Error createBackSurface " + DDErrorString(hr));
 			exit(1);
 		}
-
-
-		/*
-		auto _iter = _bcount + _bcount / 2;
-		int _finded = 0;
-
-		// typedef char *pchar;
-		// char **backs = new pchar[_bcount];
-		Buffer *backs = (Buffer *)malloc(sizeof(Buffer) * _bcount);
-
-		while (_finded != _bcount && _iter) {
-
-			lprint("flip for search");
-			_dds_Primary->Flip(NULL, DDFLIP_WAIT);
-
-			ZeroMemory(&ddsd2, sizeof(ddsd2));
-			ddsd2.dwCaps = DDSCAPS_BACKBUFFER;
-			auto bb = _dds_Primary;
-			_dds_Primary->GetAttachedSurface(&ddsd2, &bb);
-
-			DDSURFACEDESC2 ddsd;
-			ddsd.dwSize = sizeof(ddsd);
-			hr = bb->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
-			if (hr != DD_OK) {
-				lprint(std::string("Error _dds_Primary->Lock ") + DDErrorString(hr));
-				return;
-			}
-
-			auto _surface = (char *)ddsd.lpSurface;
-
-			bb->Unlock(NULL);
-
-			// check for exists
-			bool _exist = false;
-			for (int i = 0; i < _finded; i++) {
-				if (backs[i]._surface == _surface) {
-					_exist = true;
-					break;
-				}
-			}
-			if (_exist) {
-				continue;
-			}
-			Buffer *b = &backs[_finded];
-			b->_surface = _surface;
-			b->_pitch = ddsd.lPitch;
-			b->_dds = bb;
-			b->_atScreen = false;
-
-			_finded++;
-		}
-		*/
-
-		/*
-		for (int i = 0; i < _finded; i++) {
-			lprint(std::string("back ") + inttostr((void *)backs[i]));
-		}
-		*/
-
 
 	}
 	PostMessage(_hwnd, 0x400, 0, 0);
@@ -355,15 +306,12 @@ void Renderer::enableFullScreen(int w, int h) {
 		_inSwitch = true;
 		// _hided = true;
 
-		lprint("Renderer::enableFullScreen before lock");
+		lprint_RENDERER("before thread lock");
 		boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
-		lprint("after lock");
+		lprint_RENDERER("after thread lock");
 
 
 		HRESULT hr;
-
-		// lprint(std::string("_thread_enableFullScreen ") + inttostr(w) + "x" + inttostr(h));
-
 
 		if (!_fullscreen) {
 			saveWindowedState();
@@ -371,16 +319,16 @@ void Renderer::enableFullScreen(int w, int h) {
 
 		_fullscreen = true;
 
-		lprint("before SetWindowLong");
+		lprint_RENDERER("before SetWindowLong");
 		SetWindowLong(_hwnd, GWL_STYLE, _windowStyle & ~WS_OVERLAPPEDWINDOW);
-		lprint("after SetWindowLong");
+		lprint_RENDERER("after SetWindowLong");
 
 		// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
-		lprint("before SetCooperativeLevel DDSCL_FULLSCREEN");
+		lprint_RENDERER("before SetCooperativeLevel DDSCL_FULLSCREEN");
 		hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
-		lprint("after SetCooperativeLevel");
+		lprint_RENDERER("after SetCooperativeLevel");
 		if (FAILED(hr)) {
-			lprint("Error: SetCooperativeLevel");
+			eprint("Error: SetCooperativeLevel " + DDErrorString(hr));
 			return;
 		}
 
@@ -394,8 +342,6 @@ void Renderer::enableFullScreen(int w, int h) {
 		// _hided = false;
 		_inSwitch = false;
 	}
-
-	// lprint(std::string("_thread_enableFullScreen done"));
 }
 
 void Renderer::disableFullScreen() {
@@ -404,9 +350,9 @@ void Renderer::disableFullScreen() {
 	_inSwitch = true;
 	// lprint(std::string("disableFullScreen 1"));
 
-	lprint("before lock disableFullScreen");
+	lprint_RENDERER("before thread lock");
 	boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
-	lprint("after lock");
+	lprint_RENDERER("after thread lock");
 
 	HRESULT hr;
 
@@ -419,7 +365,7 @@ void Renderer::disableFullScreen() {
 	_curmonitorModeInfo.dwSize = sizeof(_curmonitorModeInfo);
 	hr = _dd->GetDisplayMode(&_curmonitorModeInfo);
 	if (FAILED(hr)) {
-		lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
+		eprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
 	}
 
 	
@@ -429,7 +375,7 @@ void Renderer::disableFullScreen() {
 	else {
 		hr = _dd->SetDisplayMode(_monitorModeInfo.dwWidth, _monitorModeInfo.dwHeight, _monitorModeInfo.ddpfPixelFormat.dwRGBBitCount, 0, 0);
 		if (FAILED(hr)) {
-			lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
+			eprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
 			// continue;
 		}
 	}
@@ -451,18 +397,6 @@ void Renderer::disableFullScreen() {
 	}
 	PostMessage(_hwnd, 0x400, 0, 0);
 }
-
-/*
-
-HRESULT WINAPI EnumModes_(_In_ LPDDSURFACEDESC2  d, _In_ LPVOID lpContext) {
-
-	lprint(std::string("EnumModes_ ") + inttostr(d->dwWidth) + " " + inttostr(d->dwHeight) + " " + inttostr(d->ddpfPixelFormat.dwRGBBitCount) + " " + inttostr(d->dwRefreshRate));
-
-	return DDENUMRET_OK;
-}
-
-*/
-
 
 Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd) {
 	
@@ -522,11 +456,11 @@ Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd
 		SetWindowLong(_hwnd, GWL_STYLE, _windowStyle & ~WS_OVERLAPPEDWINDOW);
 
 		// hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
-		lprint("before SetCooperativeLevel DDSCL_FULLSCREEN");
+		lprint_RENDERER("before SetCooperativeLevel DDSCL_FULLSCREEN");
 		hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
-		lprint("after SetCooperativeLevel");
+		lprint_RENDERER("after SetCooperativeLevel");
 		if (FAILED(hr)) {
-			lprint("Error: SetCooperativeLevel");
+			eprint("Error: SetCooperativeLevel " + DDErrorString(hr));
 			return;
 		}
 
@@ -534,11 +468,11 @@ Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd
 	}
 	else {
 
-		hr = this->_dd->SetCooperativeLevel(hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
+		hr = _dd->SetCooperativeLevel(hwnd, DDSCL_NORMAL | DDSCL_MULTITHREADED);
 		if (FAILED(hr))
 			return;
 
-		if (!this->createSurfaces()) {
+		if (!createSurfaces()) {
 			return;
 		}
 
@@ -548,12 +482,9 @@ Renderer::Renderer(HWND hwnd, bool runInFullscreen, int mw, int mh) : _hwnd(hwnd
 		this->_layers[l] = new RObjectSet();
 	}
 
-	// _dd->EnumDisplayModes(DDEDM_REFRESHRATES, NULL, NULL, EnumModes_);
-	
-
 	HANDLE ht = CreateThread(NULL, 0, MyThreadFunction, this, 0, NULL);
 
-	this->_state = OK;
+	_state = OK;
 }
 
 bool Renderer::createBackSurface() {
@@ -565,20 +496,17 @@ bool Renderer::createBackSurface() {
 	ddsd.dwSize = sizeof(ddsd);
 
 	ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT | DDSD_CAPS;
-	ddsd.dwWidth = this->_width;
-	ddsd.dwHeight = this->_height;
+	ddsd.dwWidth = _width;
+	ddsd.dwHeight = _height;
 	ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-	// ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
 
-	// this->_dds_Back = new LPDIRECTDRAWSURFACE7[this->_backSurfaceCount];
-	this->_backSurfaceIndex = 0;
+	_backSurfaceIndex = 0;
+	for (int i = 0; i < _backSurfaceCount; i++) {
 
-	for (int i = 0; i < this->_backSurfaceCount; i++) {
-
-		hr = this->_dd->CreateSurface(&ddsd, &this->_dds_Back[i], NULL);
+		hr = this->_dd->CreateSurface(&ddsd, &_dds_Back[i], NULL);
 		if (FAILED(hr)) {
-			this->_state = CreateBackSurfaceFailed;
-			lprint(std::string("error createBackSurface ") + DDErrorString(hr));
+			_state = CreateBackSurfaceFailed;
+			eprint("Error createBackSurface " + DDErrorString(hr));
 			return false;
 		}
 
@@ -592,7 +520,7 @@ bool Renderer::createSurfaces() {
 	HRESULT hr;
 
 	// --------------------------------------------------------------
-	lprint("Renderer::createSurfaces");
+	lprint_RENDERER("");
 
 	DDSURFACEDESC2 ddsd;
 
@@ -603,44 +531,44 @@ bool Renderer::createSurfaces() {
 	// ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_SYSTEMMEMORY;
 	ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
 
-	hr = this->_dd->CreateSurface(&ddsd, &this->_dds_Primary, NULL);
+	hr = _dd->CreateSurface(&ddsd, &_dds_Primary, NULL);
 	if (FAILED(hr)) {
-		this->_state = CreatePrimarySurfaceFailed;
-		lprint(std::string("error createSurfaces ") + DDErrorString(hr));
+		_state = CreatePrimarySurfaceFailed;
+		eprint("Error createSurfaces " + DDErrorString(hr));
 		return false;
 	}
 
 	// --------------------------------------------------------------
 
-	if (!this->createBackSurface()) {
+	if (!createBackSurface()) {
 		return false;
 	}
 
 	// --------------------------------------------------------------
 
-	hr = this->_dd->CreateClipper(0, &this->_ddc_Clipper, NULL);
+	hr = _dd->CreateClipper(0, &_ddc_Clipper, NULL);
 	if (FAILED(hr)) {
-		lprint(std::string("error CreateClipper ") + DDErrorString(hr));
+		eprint("Error CreateClipper " + DDErrorString(hr));
 		return false;
 	}
 	
-	hr = this->_ddc_Clipper->SetHWnd(0, _hwnd);
+	hr = _ddc_Clipper->SetHWnd(0, _hwnd);
 	if (FAILED(hr)) {
-		lprint(std::string("error SetHWnd ") + DDErrorString(hr));
+		eprint("Error SetHWnd " + DDErrorString(hr));
 		return false;
 	}
 
-	hr = this->_dds_Primary->SetClipper(this->_ddc_Clipper);
+	hr = _dds_Primary->SetClipper(_ddc_Clipper);
 	if (FAILED(hr)) {
-		lprint(std::string("error SetClipper ") + DDErrorString(hr));
+		eprint("Error SetClipper " + DDErrorString(hr));
 		return false;
 	}
 
 	// --------------------------------------------------------------
-
-	hr = this->_dds_Back[0]->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
+	/*
+	hr = _dds_Back[0]->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
 	if (FAILED(hr)) {
-		lprint(std::string("error Lock ") + DDErrorString(hr));
+		lprint(std::string("Error Lock ") + DDErrorString(hr));
 		return false;
 	}
 
@@ -651,7 +579,7 @@ bool Renderer::createSurfaces() {
 		lprint(std::string("error Unlock ") + DDErrorString(hr));
 		return false;
 	}
-
+	*/
 
 	return true;
 }
@@ -668,7 +596,7 @@ DWORD Renderer::threadProc() {
 	{
 		
 	Logger::setThreadName("Renderer");
-	lprint("Renderer::threadProc");
+	lprint_RENDERER("");
 	pc = new PeriodCorrector(80);
 	HRESULT hr;
 
@@ -741,7 +669,7 @@ DWORD Renderer::threadProc() {
 	}
 	catch (...)
 	{
-		lprint("render thread err");
+		eprint("Error: catch ...");
 		exit(1);
 		return -1;
 	}
@@ -763,7 +691,7 @@ void Renderer::del(RObject *object, int layer) {
 
 	// boost::unique_lock<boost::mutex> scoped_lock(_robjectMutex);
 
-	lprint(std::string("delete object id:") + inttostr(object->_id));
+	lprint_RENDERER("object id:" + inttostr(object->_id));
 	auto list = _layers[layer];
 
 	typedef _RObjectSet::nth_index<1>::type listType;
@@ -772,7 +700,7 @@ void Renderer::del(RObject *object, int layer) {
 		list->_set.get<1>().erase(it);
 	}
 	else {
-		lprint(std::string("error object id:") + inttostr(object->_id) + " not found");
+		eprint("Error object id:" + inttostr(object->_id) + " not found in layer " + inttostr(layer));
 	}
 }
 
@@ -808,7 +736,7 @@ void Renderer::lockObjectList() {
 
 	}
 	else {
-		lprint("error _robjectMutex.try_lock_until");
+		eprint("Error _robjectMutex.try_lock_until");
 	}
 }
 
@@ -893,14 +821,14 @@ void Renderer::flip() {
 		HRESULT hr = _dds_Primary->GetAttachedSurface(&surfcaps, &b);
 		if (hr != DD_OK) {
 			_dds_backFullScreen = NULL;
-			lprint(std::string("Error: GetAttachedSurface ") + DDErrorString(hr));
+			eprint("Error: GetAttachedSurface " + DDErrorString(hr));
 		}
 
 		DDSURFACEDESC2 ddsd;
 		ddsd.dwSize = sizeof(ddsd);
 		hr = b->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
 		if (hr != DD_OK) {
-			lprint(std::string("Error b->Lock ") + DDErrorString(hr));
+			eprint("Error b->Lock " + DDErrorString(hr));
 			return;
 		}
 
@@ -908,7 +836,7 @@ void Renderer::flip() {
 		ddsdb.dwSize = sizeof(ddsdb);
 		hr = _dds_backFullScreen[0]->Lock(NULL, &ddsdb, DDLOCK_WAIT, NULL);
 		if (hr != DD_OK) {
-			lprint(std::string("Error bs->Lock ") + DDErrorString(hr));
+			eprint("Error bs->Lock " + DDErrorString(hr));
 			return;
 		}
 
@@ -929,7 +857,7 @@ void Renderer::flip() {
 		// _dds_Primary = NULL;
 		hr = _dds_Primary->Flip(NULL, DDFLIP_WAIT);
 		if (hr != DD_OK) {
-			lprint(std::string("Error _dds_Primary->Flip ") + DDErrorString(hr));
+			eprint("Error _dds_Primary->Flip " + DDErrorString(hr));
 			return;
 		}
 		/*
@@ -974,7 +902,7 @@ void Renderer::flip() {
 			// }
 		}
 		else {
-			lprint(std::string("error flip index = ") + inttostr(_backSurfaceIndex));
+			eprint("Error flip index = " + inttostr(_backSurfaceIndex));
 		}
 
 
@@ -994,14 +922,14 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		if (wParam == VK_RETURN) {
 			if (((GetKeyState(VK_MENU) & 0x8000) || (GetKeyState(VK_RMENU) & 0x8000))) {
 				if (_fullscreen) {
-					lprint("alt+enter minimize");
+					lprint_RENDERER("alt+enter minimize");
 					disableFullScreen();
 					PostMessage(_hwnd, 0x401, 0, 0);
 
 				}
 				else {
 					// lprint(std::string("enable fullscreen by alt+tab ") + inttostr(_monitorModeInfo.dwWidth) + "x" + inttostr(_monitorModeInfo.dwHeight));
-					lprint("alt+enter expand");
+					lprint_RENDERER("alt+enter expand");
 					enableFullScreen(_monitorModeInfo.dwWidth, _monitorModeInfo.dwHeight);
 					PostMessage(_hwnd, 0x402, 0, 0);
 
@@ -1015,10 +943,10 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		if (_inSwitch) {
 			return 0;
 		}
-		lprint(std::string("WM_ACTIVATE ") + inttostr((void *)wParam) + " " + inttostr((void *)lParam) + " " + (_fullscreen ? "true" : "false") + " " + (_hided ? "true" : "false"));
+		lprint_RENDERER(std::string("WM_ACTIVATE ") + inttostr((void *)wParam) + " " + inttostr((void *)lParam) + " " + (_fullscreen ? "true" : "false") + " " + (_hided ? "true" : "false"));
 
 		if (_fullscreen && wParam == 1 && _hided) {
-			lprint("show");
+			lprint_RENDERER("show");
 			_hided = false;
 			boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
 
@@ -1026,7 +954,7 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 			HRESULT hr = _dd->SetCooperativeLevel(_hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN | DDSCL_MULTITHREADED);
 			if (FAILED(hr)) {
-				lprint("Error: SetCooperativeLevel");
+				eprint("Error: SetCooperativeLevel " + DDErrorString(hr));
 				return 0;
 			}
 
@@ -1038,7 +966,7 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 		if (_fullscreen && wParam == 0 && !_hided) {
 
-			lprint("hide");
+			lprint_RENDERER("hide");
 
 			_hided = true;
 
@@ -1053,7 +981,7 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			_curmonitorModeInfo.dwSize = sizeof(_curmonitorModeInfo);
 			hr = _dd->GetDisplayMode(&_curmonitorModeInfo);
 			if (FAILED(hr)) {
-				lprint(std::string("Error: GetDisplayMode ") + DDErrorString(hr));
+				eprint("Error: GetDisplayMode " + DDErrorString(hr));
 			}
 
 
@@ -1062,7 +990,7 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 				// Set 640x480x256 full-screen mode
 				hr = _dd->SetDisplayMode(_monitorModeInfo.dwWidth, _monitorModeInfo.dwHeight, _monitorModeInfo.ddpfPixelFormat.dwRGBBitCount, 0, 0);
 				if (FAILED(hr)) {
-					lprint(std::string("Error: SetDisplayMode ") + DDErrorString(hr));
+					eprint("Error: SetDisplayMode " + DDErrorString(hr));
 					// continue;
 				}
 			}			
@@ -1086,16 +1014,24 @@ LRESULT Renderer::onWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			}
 			if (_hided) {
 				if (wParam == SIZE_RESTORED) {
+					_inSwitch = true;
+					lprint_RENDERER("before lock");
 					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+					lprint_RENDERER("after lock");
+					_inSwitch = false;
 					_hided = false;
-					lprint("set hide = false");
+					lprint_RENDERER("set hide = false");
 				}
 			}
 			else {
 				if (wParam == SIZE_MINIMIZED) {
+					_inSwitch = true;
+					lprint_RENDERER("before lock");
 					boost::unique_lock<boost::mutex> scoped_lock(_threadMutex);
+					lprint_RENDERER("after lock");
+					_inSwitch = false;
 					_hided = true;
-					lprint("set hide = true");
+					lprint_RENDERER("set hide = true");
 				}
 
 			}

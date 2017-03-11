@@ -88,7 +88,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 	if (coreScript) {
 		if (coreScript->executeObjectMethod("game", "_onWindowMessage", 
-			DL->add((_uint)message)->add((_uint)lParam)->add((_uint)LOWORD(lParam))->add((_uint)HIWORD(lParam))->add((_uint)wParam))) {
+			DL->add((_uint)message)->add((_uint)lParam)->add((_uint)LOWORD(lParam))->add((_uint)HIWORD(lParam))->add((_uint)wParam)->add((_int)GET_WHEEL_DELTA_WPARAM(wParam)))) {
 			lprint(coreScript->getError());
 		}
 		else {
@@ -149,6 +149,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	Logger::setupLogFilepath(1, "error.log");
 	Logger::setThreadName("main");
 #endif
+
+	_lprint("");
+
+	/*
+	// 0x80000000000000
+	unsigned long long i1 = 36028797018963840, i2 = ((long long)-512) + 0x80000000000000;
+	if (i1 > i2) {
+		lprint("ttt");
+	}
+	*/
+
+
 
 	/*
 	Files_openPack("data.pack");

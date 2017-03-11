@@ -23,11 +23,25 @@ static int luaC_Map_set(lua_State *L) {
 	auto y = lua_tointeger(L, 3);
 	auto id = lua_tointeger(L, 4);
 
+	/*
 	if (m->getCell(x, y) == ABSENT_CELL) {
 		m->addBlock(x, y);
 	}
 
 	m->setCell(x, y, id);
+	*/
+	m->addSetCell(x, y, id);
+
+	return 0;
+}
+
+
+static int luaC_Map_dump(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (WorldMap *)ud->data;
+
+	m->dump();
 
 	return 0;
 }
@@ -37,6 +51,7 @@ void lm_Map_install(lua_State* _l) {
 
 	lua_register(_l, "C_Map_New", luaC_Map_New);
 	lua_register(_l, "C_Map_set", luaC_Map_set);
+	lua_register(_l, "C_Map_dump", luaC_Map_dump);
 	
 }
 

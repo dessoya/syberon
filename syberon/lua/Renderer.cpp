@@ -5,6 +5,13 @@
 #include "..\Map.h"
 #include <list>
 
+#include "..\logConfig.h"
+#ifdef _LOG_LUA_GUI
+#define lprint_GUI(text) lprint(text)
+#else
+#define lprint_GUI(text)
+#endif
+
 typedef struct {
 	int w, h;
 } ModeInfo;
@@ -413,7 +420,7 @@ static int luaC_GUI_Image_New(lua_State *L) {
 
 	auto i = new RImage(x, y, image, sx, sy, sw, sh, useAlpha);
 
-	lprint("luaC_GUI_Image_New " + image->_filename + " " + inttostr(x) + " " + inttostr(y) + " " + inttostr(sx) + " " + inttostr(sy) + " " + inttostr(sw) + " " + inttostr(sh));
+	lprint_GUI(image->_filename + " " + inttostr(x) + " " + inttostr(y) + " " + inttostr(sx) + " " + inttostr(sy) + " " + inttostr(sw) + " " + inttostr(sh));
 
 	ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
 	ud->type = UDT_RImage;
@@ -468,15 +475,16 @@ static int luaC_GUI_Map_setupCellImage(lua_State *L) {
 	UserData *ud = (UserData *)lua_touserdata(L, 1);
 	auto m = (RMap *)ud->data;
 
-	auto id = lua_tointeger(L, 2);
+	auto s = lua_tointeger(L, 2);
+	auto id = lua_tointeger(L, 3);
 
-	ud = (UserData *)lua_touserdata(L, 3);
+	ud = (UserData *)lua_touserdata(L, 4);
 	auto image = (Image *)ud->data;
 
-	auto x = lua_tointeger(L, 4);
-	auto y = lua_tointeger(L, 5);
+	auto x = lua_tointeger(L, 5);
+	auto y = lua_tointeger(L, 6);
 
-	m->setupCellImage(id, image, x, y);
+	m->setupCellImage(s, id, image, x, y);
 
 	return 0;
 }
@@ -506,6 +514,57 @@ static int luaC_GUI_Map_setCoords(lua_State *L) {
 
 	return 0;
 }
+
+
+static int luaC_GUI_Map_setScale(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	auto s = lua_tointeger(L, 2);
+
+	m->setScale(s);
+
+	return 0;
+}
+
+
+static int luaC_GUI_Map_setScaleInfo(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	auto s = lua_tointeger(L, 2);
+	auto w = lua_tointeger(L, 3);
+	auto h = lua_tointeger(L, 4);
+
+	m->setScaleInfo(s, w, h);
+
+	return 0;
+}
+
+static int luaC_GUI_Map_getScaleK(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	lua_pushnumber(L, m->getScaleK());
+	// lprint(inttostr(m->getScaleK()));
+
+	return 1;
+}
+
+static int luaC_GUI_Map_updateCells(lua_State *L) {
+
+	UserData *ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (RMap *)ud->data;
+
+	m->updateCells();
+	
+	return 0;
+}
+
+
 
 
 void lm_Renderer_install(lua_State* _l) {
@@ -552,8 +611,12 @@ void lm_Renderer_install(lua_State* _l) {
 	lua_register(_l, "C_GUI_Map_setupCellImage", luaC_GUI_Map_setupCellImage);
 	lua_register(_l, "C_GUI_Map_setupViewSize", luaC_GUI_Map_setupViewSize);
 	lua_register(_l, "C_GUI_Map_setCoords", luaC_GUI_Map_setCoords);
+	lua_register(_l, "C_GUI_Map_setScale", luaC_GUI_Map_setScale);
+	lua_register(_l, "C_GUI_Map_setScaleInfo", luaC_GUI_Map_setScaleInfo);
+	lua_register(_l, "C_GUI_Map_getScaleK", luaC_GUI_Map_getScaleK);
+	lua_register(_l, "C_GUI_Map_updateCells", luaC_GUI_Map_updateCells);
 	
-	
+		
 }
 
 LuaModule *lm_Renderer = new LuaModule("renderer", lm_Renderer_install);

@@ -131,25 +131,41 @@ typedef struct {
 
 } CellInfo;
 
+typedef CellInfo *PCellInfo;
+
+typedef struct {
+	int w, h;
+	double k;
+} ScaleInfo;
+
 class RMap : public RObject {
 private:
 	boost::mutex _propMutex;
 
-	CellInfo *_images;
+	PCellInfo *_images;
+	ScaleInfo *_scaleInfo;
+	int _curScale;
 	CellID *_map;
-	int _vw, _vh;
+	int _vw, _vh, _vwp, _vhp;
 	int _cw, _ch;
 	int _ox, _oy;
-	long long _mx, _my;
+	int _scales, _cells;
+	long long _mx, _my, _mxp, _myp;
 	WorldMap *_worldMap;
 
 	void _loadFromWorldMap();
 
 public:
-	RMap(WorldMap  *map, int w, int h);
+	RMap(WorldMap *map, int scales, int cells);
 	void draw(DrawMachine *dm);
 
-	void setupCellImage(CellID id, Image *image, int x, int y);
-	void setupViewSize(int w, int h);
-	void setCoors(long long x, long long y);
+	void setScaleInfo(int s, int w, int h);
+	void setScale(int s);
+	double getScaleK() { return _scaleInfo[_curScale].k; }
+
+	void updateCells();
+
+	void setupCellImage(int s, CellID id, Image *image, int x, int y);
+	void setupViewSize(int w, int h, bool lock = true);
+	void setCoors(long long x, long long y, bool lock = true);
 };

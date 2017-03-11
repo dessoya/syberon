@@ -61,3 +61,56 @@ _G.loadfile = nil
 _G.load = nil
 _G.loadstring = nil
 _G.print = nil
+
+
+local function split(str, sep)
+   local result = {}
+   local regex = ("([^%s]+)"):format(sep)
+   for each in str:gmatch(regex) do
+      table.insert(result, each)
+   end
+   return result
+end
+
+local debugOption = require("debugOption")
+
+C_InstallPreProcessor(function(filename, text)
+
+	local f = filename:sub(1, filename:len() - 4)
+	if debugOption[f] == nil then return text end
+
+	local opt = debugOption[f]
+	if type(opt) == "boolean" then
+		if opt == false then return text end
+		opt = { }
+	else
+		if opt.all ~= nil and opt.all == false then return text end
+	end
+
+	local lines = split(text, "\n\r")
+
+	text = ""
+	for i, line in ipairs(lines) do
+
+		for l in line:gmatch("%s-[%-]+%s-(lprint[^\n\r]+)") do
+			line = l
+			break
+		end
+
+		for l in line:gmatch("%s-[%-]+%s-(dump[^\n\r]+)") do
+			line = l
+			break
+		end
+
+		for g, l in line:gmatch("%s-[%-]+%s-%[(%S+)%]%s-(lprint[^\n\r]+)") do
+			if opt[g] ~= nil and opt[g] == true then
+				line = l
+			end
+			break
+		end
+
+		text = text .. "\n" .. line
+	end
+
+	return text
+end)

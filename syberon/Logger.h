@@ -28,11 +28,13 @@ public:
 #define _DEBUG_LOGGER
 
 #ifdef _DEBUG_LOGGER
-#define lprint(a) Logger::loggers[0]->print(std::string("") + __func__ + " " + a);
+#define lprint(a) Logger::loggers[0]->print(std::string("") + __FUNCTION__ + " " + a);
 #define _lprint(a) Logger::loggers[0]->print(std::string("") + a);
+#define eprint(a) Logger::loggers[1]->print(std::string("") + __FUNCTION__ + " " + a);
 #define _eprint(a) Logger::loggers[1]->print(std::string("") + a);
 #else
 #define lprint(a)
 #define _lprint(a)
+#define eprint(a)
 #define _eprint(a)
 #endif

@@ -14,6 +14,7 @@ Const.WM = {
 	LButtonUp				= 0x0202,
 	Active					= 0x0006,
 	RButtonDown				= 0x0204,
+	MouseWheel				= 0x020A,
 
 	SYSKeyDown 				= 0x104,
 	SYSKeyUp 				= 0x105,

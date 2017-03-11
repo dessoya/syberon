@@ -135,10 +135,17 @@ static int luaC_executeFile(lua_State *L) {
 	std::string filename = std::string("lua\\") + lua_tostring(L, -1);
 	char *b; int sz;	
 	File *f = Files_get(&filename.c_str()[4]);
+	char *saveptr = NULL;
 	if (f) {
 		lprint_LS_EXECUTE_FILE(filename + " from data.pack");
 		b = f->_data;
+		saveptr = b;
 		sz = f->_len;
+
+		char *tb = new char[sz + 1];
+		memcpy(tb, b, sz);
+		tb[sz] = 0;
+		b = tb;
 	}
 	else {
 		lprint_LS_EXECUTE_FILE(filename);
@@ -156,8 +163,9 @@ static int luaC_executeFile(lua_State *L) {
 		sz = ftell(f);
 		fseek(f, 0, SEEK_SET);
 
-		b = new char[sz];
+		b = new char[sz + 1];
 		fread(b, sz, 1, f);
+		b[sz] = 0;
 
 		fclose(f);
 	}
@@ -165,6 +173,43 @@ static int luaC_executeFile(lua_State *L) {
 	lua_getglobal(L, "__error_string");
 	std::string *lastError = (std::string *)lua_touserdata(L, -1);
 	lua_pop(L, 1);
+
+	lua_getglobal(L, "__CClass");
+	LuaScript *s = (LuaScript *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	for (int i = 0; i < s->_pp_pos; i++) {
+
+		LuaStackGuard stackGuard(L);
+
+		int ref = s->_pp[i];
+
+		(*lastError) = "";
+		lua_pushcfunction(L, errorHandler);
+
+		lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+
+		// lprint_LS_EXECUTE_FILE("text len " + inttostr(sz));
+		lua_pushstring(L, &filename.c_str()[4]);
+		lua_pushstring(L, b);
+
+		lprint_LS_EXECUTE_FILE("before preprocessor");
+		if (lua_pcall(L, 2, LUA_MULTRET, -4)) {
+			eprint(*lastError);
+		}
+		else {
+			lprint_LS_EXECUTE_FILE("after preprocessor");
+			char *b2 = (char *)lua_tostring(L, -1);
+			if(b != saveptr) delete b;
+			sz = strlen(b2);
+			b = new char[sz + 1];
+			memcpy(b, b2, sz + 1);
+			// lprint_LS_EXECUTE_FILE("text len " + inttostr(sz));
+			// lprint(b);
+		}
+
+	}
+
 
 	(*lastError) = "";
 	lua_pushcfunction(L, errorHandler);
@@ -180,6 +225,8 @@ static int luaC_executeFile(lua_State *L) {
 		lprint(std::string("Executon error: ") + err + (*lastError));		
 		return 1;
 	}
+
+	if (b != saveptr) delete b;
 
 	return 1;
 }
@@ -226,7 +273,7 @@ static int luaC_InstallModule(lua_State *L) {
 		m->installModule(L);
 	}
 	else {
-		lprint("error luaC_InstallModule: can't find module " + moduleName);
+		eprint("Error can't find module " + moduleName);
 	}
 	return 0;
 }
@@ -282,6 +329,25 @@ static int luaC_Exit(lua_State *L) {
 	return 0;
 }
 
+
+static int luaC_InstallPreProcessor(lua_State *L) {
+
+	LuaStackGuard stackGuard(L);
+
+	lua_insert(L, 1);
+	int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+	lua_getglobal(L, "__CClass");
+	LuaScript *s = (LuaScript *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	s->_pp[s->_pp_pos] = ref;
+	s->_pp_pos ++;
+
+
+	return 0;
+}
+
 void luaL_requiref(lua_State *L, const char *name, lua_CFunction func, int i) {
 	lua_pushcfunction(L, func);
 	lua_pushstring(L, name);
@@ -289,6 +355,8 @@ void luaL_requiref(lua_State *L, const char *name, lua_CFunction func, int i) {
 }
 
 LuaScript::LuaScript() : _returnValue(NULL) {
+
+	_pp_pos = 0;
 
 	_l = luaL_newstate();
 	if (luaJIT_setmode(_l, 0, LUAJIT_MODE_ENGINE) == 0) {
@@ -298,6 +366,9 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 	std::string *_error = new std::string;
 	lua_pushlightuserdata(_l, _error);
 	lua_setglobal(_l , "__error_string");
+
+	lua_pushlightuserdata(_l, this);
+	lua_setglobal(_l, "__CClass");
 
 	luaL_requiref(_l, "_G", luaopen_base, 1);
 	luaL_requiref(_l, LUA_TABLIBNAME, luaopen_table, 1);
@@ -316,6 +387,9 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 	lua_register(_l, "C_UnpackTable", luaC_UnpackTable);
 
 	lua_register(_l, "C_Exit", luaC_Exit);
+
+	lua_register(_l, "C_InstallPreProcessor", luaC_InstallPreProcessor);
+	
 
 	if (this->executeFile("core.lua")) {
 		lprint(this->getError());

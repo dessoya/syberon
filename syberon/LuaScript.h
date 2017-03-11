@@ -86,6 +86,7 @@ public:
 		case UDT_Void:
 		case UDT_Image:
 		case UDT_Renderer:
+		case UDT_RRect:
 			auto ud1 = (UserData *)lua_newuserdata(L, sizeof(UserData));
 			ud1->data = ud.data;
 			ud1->type = ud.type;
@@ -187,6 +188,10 @@ private:
 	LuaValue *_returnValue;
 
 public:
+
+	int _pp_pos;
+	int _pp[16];
+
 	LuaScript();
 	virtual ~LuaScript();
 

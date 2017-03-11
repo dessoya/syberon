@@ -3,9 +3,11 @@ local Const = require("ImageLoaderConst")
 
 local Images = {
 	  "controls.png"
-	, "ter1.png"
+	-- , "ter1.png"
 	, "player-basic-idle.png"
 	, "player-basic-run.png"
+	, "png_01\\Grass.png"
+	, "png_01\\Ground.png"
 --	, "font_v1.png"
 }
 local TestImages = { }
@@ -22,6 +24,8 @@ function thread(hwnd)
 	C_InstallModule("thread")
 	C_InstallModule("image")
 	C_Thread_SetName("ImageLoader")
+
+	lprint("start")
 
 	local work = true
 	while work do

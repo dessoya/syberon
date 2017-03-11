@@ -31,7 +31,7 @@ function Interface:initialize(hwnd)
 end
 
 function Interface:onUpdateOptions(options, l1, l2, data)
-	lprint("Interface:onUpdateOptions " .. options)
+	--lprint("Interface:onUpdateOptions " .. options)
 	local g = C_UnpackTable(data)
 	if options == Const.Options.Interface then
 		self.interface = g
@@ -39,9 +39,9 @@ function Interface:onUpdateOptions(options, l1, l2, data)
 end
 
 function Interface:onThreadId(lparam)
-	lprint("World:onThreadId")
+	--lprint("Interface:onThreadId")
 	local data = C_UnpackTable(lparam)
-	dump(data)
+	--dump(data)
 	self.worldThreadId = data.world
 	IObject.init(self.worldThreadId)
 
@@ -50,8 +50,8 @@ end
 
 function Interface:onKeys(lparam)
 	self.controlKeys = C_UnpackTable(lparam)
-	lprint("Interface:onKeys")
-	dump(self.controlKeys)
+	--lprint("Interface:onKeys")
+	--dump(self.controlKeys)
 end
 
 function Interface:keyPressed(key, alt)
@@ -96,17 +96,17 @@ end
 
 function Interface:onAddObject(lparam)
 	local data = C_UnpackTable(lparam)
-	dump(data)
+	--dump(data)
 	local object = IObject.make(data)
 	if object ~= nil then
 		if object.type == "player" then
 			self.player = object
-			lprint("got player object")
+			--lprint("got player object")
 		end
 		table.insert(self.objects, object)
 	else
-		lprint("error can't make IObject")
-		dump(data)
+		eprint("error can't make IObject")
+		-- dump(data)
 	end
 
 end

@@ -3,6 +3,14 @@
 #include "..\LuaScript.h"
 #include "..\Utils.h"
 
+#include "..\logConfig.h"
+#ifdef _LOG_LUA_THREAD
+#define lprint_THREAD(text) lprint(text)
+#else
+#define lprint_THREAD(text)
+#endif
+
+
 typedef struct {
 
 	std::string *filepath;
@@ -10,33 +18,45 @@ typedef struct {
 
 } LuaThreadParams;
 
+void MiniDumpFunction(unsigned int nExceptionCode, EXCEPTION_POINTERS *pException);
+
 DWORD WINAPI LuaThreadFunction(LPVOID lpParam) {
 
-	auto p = (LuaThreadParams *)lpParam;
-	std::string filepath = *p->filepath + ".lua";
-	Logger::setThreadName(filepath.c_str());
+	std::string filepath;
+	_set_se_translator(MiniDumpFunction);
+	try  // this try block allows the SE translator to work
+	{
+		auto p = (LuaThreadParams *)lpParam;
+		filepath = *p->filepath + ".lua";
+		Logger::setThreadName(filepath.c_str());
 
-	lprint("execute lua thread " + filepath);
-	LuaScript *L = new LuaScript();
+		lprint_THREAD(filepath);
+		LuaScript *L = new LuaScript();
 
-	if (L->executeFile(filepath)) {
-		lprint("error in lua thread " + filepath)
-		lprint(L->getError());
-		return 1;
+		if (L->executeFile(filepath)) {
+			eprint("Error in file " + filepath)
+			eprint(L->getError());
+			return 1;
+		}
+
+		if (L->executeFunction("thread", p->list)) {
+			eprint("Error in function 'thread' in file " + filepath);
+			eprint(L->getError());
+			return 1;
+		}
+
+		delete L;
+		delete p->filepath;
+		delete p;
+
+		lprint_THREAD("finish " + filepath);
+		return 0;
 	}
-
-	if (L->executeFunction("thread", p->list)) {
-		lprint("error in lua thread " + filepath);
-		lprint(L->getError());
-		return 1;
+	catch (...)
+	{
+		eprint("catch ... in " + filepath);
+		return -1;
 	}
-
-	delete L;
-	delete p->filepath;
-	delete p;
-
-	lprint("finish lua thread " + filepath);
-	return 0;
 }
 
 static int luaC_Thread_New(lua_State *L) {
@@ -61,7 +81,7 @@ static int luaC_Thread_New(lua_State *L) {
 	auto threadId = GetThreadId(ht);
 	lua_pushinteger(L, threadId);
 
-	lprint("luaC_Thread_New threadId " + inttostr(threadId));
+	lprint_THREAD("threadId " + inttostr(threadId));
 
 	return 1;
 }
@@ -90,7 +110,7 @@ static int luaC_Thread_PostMessage(lua_State *L) {
 			auto e = GetLastError();
 			// ERROR_INVALID_THREAD_ID 1444
 			// ERROR_NOT_ENOUGH_QUOTA 1816
-			lprint("PostThreadMessage error " + inttostr(e));
+			// eprint("Error thread " + inttostr(e));
 			lua_pushboolean(L, TRUE);
 		}
 		else {
@@ -102,7 +122,7 @@ static int luaC_Thread_PostMessage(lua_State *L) {
 		BOOL r = PostMessage((HWND)ud->data, messageId, wparam, lparam);
 		if (r == 0) {
 			auto e = GetLastError();
-			lprint("PostMessage error " + inttostr(e));
+			// eprint("Error hwnd " + inttostr(e));
 			lua_pushboolean(L, TRUE);
 		}
 		else {

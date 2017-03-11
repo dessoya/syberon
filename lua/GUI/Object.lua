@@ -59,7 +59,7 @@ function GUIObject:getID()
 end
 
 function GUIObject:addChild(child)
-	lprint("add id:" .. child.id .. " to id:" .. self.id)
+	--lprint("add id:" .. child.id .. " to id:" .. self.id)
 	if 	self.childs == nil then
 		self.childs = {}
 		self.childCount = 0

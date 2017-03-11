@@ -19,8 +19,9 @@ function World:initialize(pump, images, hwnd, renderer, optionFile)
 		[WConst.WM.KeyDown]			= "onKeyDown",
 		[WConst.WM.KeyUp]			= "onKeyUp",
 		[WConst.WM.Active]			= "onWindowActive",
+		[WConst.WM.MouseWheel]		= "onMouseWheel",
 
-		[Const.CMD_UpdateOptions]	= "onUpdateOptions"
+		[Const.CMD_UpdateOptions]	= "onUpdateOptions"		
 	})
 
 	pump:registerReciever(self)
@@ -48,8 +49,17 @@ function World:initialize(pump, images, hwnd, renderer, optionFile)
 
 end
 
+function World:onMouseWheel(l, l1, l2, w, w1)
+
+	lprint("World:onMouseWheel " .. w1)
+	if self.thread ~= nil then
+		self.thread:send(WConst.WM.MouseWheel, w1)
+	end
+
+end
+
 function World:onUpdateOptions(group, l1, l2, data)
-	lprint("World:onUpdateOptions")
+	-- lprint("World:onUpdateOptions")
 	local g = C_UnpackTable(data)
 	if self.interfaceThread ~= nil then
 		self.interfaceThread:send(Const.CMD_UpdateOptions, group, C_PackTable(g))
@@ -84,20 +94,20 @@ function World:onWindowActive()
 end
 
 
-function World:create()
+function World:create(backgroundPtr)
 
-	self.thread:send(Const.CMD_Create)
+	self.thread:send(Const.CMD_Create, C_PackTable({ backgroundPtr = backgroundPtr }))
 
 end
 
 function World:onGetImage(lparam)
 	local data = C_UnpackTable(lparam)
-	lprint("World:onGetImage " .. data.name)
+	-- lprint("World:onGetImage " .. data.name)
 	if self.images[data.name] ~= nil then
-		lprint("image exists")
+		-- lprint("image exists")
 		self.thread:send(Const.CMD_Image, C_PackTable({ image = self.images[data.name] }))
 	else
-		lprint("image absent")
+		-- lprint("image absent")
 		self.thread:send(Const.CMD_ImageAbsent)
 	end
 end

@@ -21,7 +21,7 @@ function MessagePump:addNames(messageNames)
 	end
 end
 
-function MessagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
+function MessagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam, w1)
 
 	local flag = false
 	-- lprint("message " .. message)
@@ -32,7 +32,7 @@ function MessagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
 		local method = self.messageNames[message]
 		-- lprint("method " .. method)
 		for i, r in ipairs(recievers) do
-			if r[method](r, lparam, lparam1, lparam2, wparam) then
+			if r[method](r, lparam, lparam1, lparam2, wparam, w1) then
 				flag = true
 			end
 		end
@@ -44,7 +44,7 @@ function MessagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
 		local recievers = self.messageMap.onWindowMessage
 		for i, r in ipairs(recievers) do
 			-- lprint(".onWindowMessage")
-			if r:onWindowMessage(message, lparam, lparam1, lparam2, wparam) then
+			if r:onWindowMessage(message, lparam, lparam1, lparam2, wparam, w1) then
 				flag = true
 			end
 		end

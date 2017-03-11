@@ -255,11 +255,10 @@ function Game:openMainMenu()
 				self.mainMenu:del()
 				self.menuIsOpened = false
 				self.mainMenu = nil
-				self.renderer:del(self.background)
-				
+				-- self.renderer:del(self.background)				
 			end)
 			self.gameInProgress = true
-			self.world:create()
+			self.world:create(self.background._ptr)
 		end,
 
 		-- quit  button
@@ -320,7 +319,7 @@ end
 
 function Game:onRecreateSurface()
 
-	lprint("recreate surfaces")
+	-- lprint("recreate surfaces")
 	for name, image in pairs(Images) do
 		C_Image_Restore(image)
 	end
@@ -329,7 +328,7 @@ end
 
 function Game:onDisableFullscreen()
 
-	lprint("Game:onDisableFullscreen")
+	-- lprint("Game:onDisableFullscreen")
 
 	local g = self.optionFile:getGroup("video")
 	g.fullscreen = false
@@ -343,7 +342,7 @@ end
 
 function Game:onEnableFullscreen()
 
-	lprint("Game:onEnableFullscreen")
+	-- lprint("Game:onEnableFullscreen")
 
 	local g = self.optionFile:getGroup("video")
 	g.fullscreen = true
@@ -357,8 +356,8 @@ function Game:onEnableFullscreen()
 
 end
 
-function Game:_onWindowMessage(message, lparam, lparam1, lparam2, wparam)
-	return self.messagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
+function Game:_onWindowMessage(message, lparam, lparam1, lparam2, wparam, w1)
+	return self.messagePump:onWindowMessage(message, lparam, lparam1, lparam2, wparam, w1)
 end
 
 function Game:onQuit()

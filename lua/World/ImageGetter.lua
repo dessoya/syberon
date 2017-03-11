@@ -29,22 +29,22 @@ function ImageGetter:makeImageRequest()
 	end
 
 	self.gettingImageName = table.remove(self.imageForLoad)
-	lprint("GetImage " .. self.gettingImageName)
+	-- lprint("GetImage " .. self.gettingImageName)
 	C_Thread_PostMessage(self.hwnd, Const.CMD_GetImage, C_PackTable({ name = self.gettingImageName }))
 
 end
 
 function ImageGetter:onImage(lparam)
-	lprint("recieve image " .. self.gettingImageName)
+	--lprint("recieve image " .. self.gettingImageName)
 	local data = C_UnpackTable(lparam)
 	self.images[self.gettingImageName] = data.image
 	self:makeImageRequest()
 end
 
 function ImageGetter:onImageAbsent()
-	lprint("image " .. self.gettingImageName .. " absent")
+	--lprint("image " .. self.gettingImageName .. " absent")
 	C_Timer_Sleep(135)
-	lprint("try GetImage " .. self.gettingImageName)
+	--lprint("try GetImage " .. self.gettingImageName)
 	C_Thread_PostMessage(self.hwnd, Const.CMD_GetImage, C_PackTable({ name = self.gettingImageName }))
 end
 

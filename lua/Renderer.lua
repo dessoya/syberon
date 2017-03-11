@@ -55,7 +55,7 @@ end
 
 function Renderer:lockObjectList()
 	if self.lockCount == 0 then
-		lprint("C_Renderer lock")
+		--lprint("lock")
 		C_Renderer_lockObjectList(self._ptr)
 	end
 	self.lockCount = self.lockCount + 1
@@ -63,7 +63,7 @@ end
 
 function Renderer:unlockObjectList()
 	if self.lockCount == 1 then
-		lprint("C_Renderer unlock")
+		--lprint("unlock")
 		C_Renderer_unlockObjectList(self._ptr)
 	end
 	self.lockCount = self.lockCount - 1
@@ -145,7 +145,7 @@ end
 
 
 function Renderer:onWindowActive(lparam, lparam1, lparam2, wparam)
-	lprint("Renderer:onActive " .. wparam)
+	--lprint("onWindowActive " .. wparam)
 	if wparam == 0 then
 		C_Renderer_setFPS(self._ptr, 10)
 	else
@@ -154,7 +154,7 @@ function Renderer:onWindowActive(lparam, lparam1, lparam2, wparam)
 end
 
 function Renderer:onWindowSize(lparam, lparam1, lparam2, wparam)
-	-- lprint("Renderer:onWMSize " .. lparam1 .. " " .. lparam2)
+	-- lprint("onWindowSize " .. lparam1 .. " " .. lparam2)
 	self.ww = lparam1
 	self.wh = lparam2
 	self:invokeChilds("onWindowSize", lparam1, lparam2)
@@ -165,7 +165,7 @@ function Renderer:onMouseMove(lparam, lparam1, lparam2, wparam)
 	self.mx = lparam1
 	self.my = lparam2
 	self.mflags = wparam
-	-- lprint("Renderer:onWMMouseMove " .. lparam1 .. " " .. lparam2 .. " " .. wparam)
+	--[mm] lprint("onMouseMove " .. lparam1 .. " " .. lparam2 .. " " .. wparam)
 	self:invokeChilds("onMouseMove", lparam1, lparam2, wparam)
 end
 
