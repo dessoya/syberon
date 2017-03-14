@@ -21,6 +21,9 @@ public:
 
 	Image(const char *filepath);
 	Image(Image *si, int m, int d);
+	Image(Image *si, int m, int d, int sx, int sy, int sw, int sh);
+	void _init(Image *si, int m, int d, int sx, int sy, int sw, int sh);
+
 
 	void disableDDS();
 

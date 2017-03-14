@@ -29,6 +29,10 @@ local _formatscalar = function(v)
 			return "true:boolean"
 		end
 		return "false:boolean"
+	elseif type(v) == "function" then
+		return "function"
+	else
+		return "unk:" .. type(v)
 	end
 	return v
 end

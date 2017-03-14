@@ -14,8 +14,51 @@
 #define _1 ((unsigned long long)1)
 
 LastBlock::LastBlock(lint x, lint y) : _x(x), _y(y) {
+
+	_ids = NULL;
+	_count = 0;
+	_size = 0;
+
 	_block = new CellID[1 << (B_BITS + B_BITS)];
 	memset(_block, 0, (1 << (B_BITS + B_BITS)) * sizeof(CellID));
+}
+
+#define IDS_START_COUNT 8
+
+void LastBlock::addID(lint id) {
+
+	if (_ids == NULL) {
+		_ids = new lint[IDS_START_COUNT];
+		_size = IDS_START_COUNT;
+	}
+
+	if (_count == _size) {
+		// make x2
+		_size <<= 1;
+		lint *ids = new lint[_size];
+		memcpy(ids, _ids, sizeof(lint) * _count);
+		delete _ids;
+		_ids = ids;
+	}
+
+	_ids[_count] = id;
+	_count++;
+}
+
+void LastBlock::delID(lint id) {
+
+	lint *p = _ids;
+	for (int i = 0; i < _count; i++, p++) {
+		if (*p == id) {
+			int last = _count - 1;
+			if (_count > 1 && i != last) {
+				*p = _ids[last];
+			}
+			_count--;
+			return;
+		}
+	}
+
 }
 
 /*
@@ -102,10 +145,37 @@ void Block::dump(std::string *l) {
 	if (l == NULL) {
 		l = new std::string;
 	}
-	lprint_MAP((*l) + "level " + inttostr(_level) + " m " + inttostr(_m) + " x " + inttostr(_x) + " y " + inttostr(_y) + " size " + inttostr(_x + (_1 << (_m + B_BITS))) + "x" + inttostr(_y + (_1 << (_m + B_BITS))));
-	if (_level == 1) return;
+
+	long long x1 = _x - MAP_MID;
+	long long y1 = _y - MAP_MID;
+	if (_x < MAP_MID) {
+		x1 = (long long)(MAP_MID - _x) * -1;
+	}
+	if (_y < MAP_MID) {
+		y1 = (long long)(MAP_MID - _y) * -1;
+	}
+
+	lprint_MAP((*l) + "level " + inttostr(_level) + " m " + inttostr(_m) + " x " + inttostr(x1) + " y " + inttostr(y1) + " size " + inttostr(x1 + (_1 << (_m + B_BITS))) + "x" + inttostr(y1 + (_1 << (_m + B_BITS))));
+
 	std::string *ln = new std::string(*l);
 	(*ln) += "  ";
+
+	if (_level == 1) {
+		lprint_MAP((*l) + "ids");
+		int d = _1 << B_BITS;
+		for (int y = 0; y < d; y++) {
+			for (int x = 0; x < d; x++) {
+				auto b = _lblock[x + (y << B_BITS)];
+				if (b && b->_count) {
+					lprint_MAP((*l) + "cell x " + inttostr(x) + " y " + inttostr(y));
+					for (int i = 0; i < b->_count; i++) {
+						lprint_MAP((*ln) + inttostr(b->_ids[i]));
+					}
+				}
+			}
+		}
+		return;
+	}
 	
 	int d = _1 << B_BITS;
 	for (int y = 0; y < d; y++) {
@@ -368,7 +438,7 @@ void Map::addSetCell(long long __x, long long __y, CellID id) {
 			_root = new Block(level, MAP_MID - e, MAP_MID - e);
 
 			// place b at B_BITS >> 1
-			auto x1 = _1 << (B_BITS >> 1);
+			auto x1 = _1 << (B_BITS - 1);
 			_root->_block[x1 + (x1 << B_BITS)] = b;
 
 			b = _root;
@@ -428,6 +498,183 @@ void Map::addSetCell(long long __x, long long __y, CellID id) {
 
 }
 
+void Map::addSetIfEmptyAndId(long long __x, long long __y, CellID id, CellID id2) {
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
+
+	lint level = _level;
+	auto b = _root;
+	lint m = _m;
+
+
+	while (true) {
+		lint dx = b->_x + (_1 << m);
+		lint dy = b->_y + (_1 << m);
+
+		if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+			// lprint_MAP("out of bound");
+			level++;
+			_level++;
+
+			auto e = (_1 << ((B_BITS * level) - 1 + B_BITS));
+
+			_m += B_BITS;
+			m += B_BITS;
+
+			_root = new Block(level, MAP_MID - e, MAP_MID - e);
+
+			// place b at B_BITS >> 1
+			auto x1 = _1 << (B_BITS - 1);
+			_root->_block[x1 + (x1 << B_BITS)] = b;
+
+			b = _root;
+
+			continue;
+		}
+		break;
+	}
+
+	while (level > 0 && b) {
+
+		auto bb = b;
+		b = b->getBlock(x, y);
+
+		if (b == NULL) {
+			b = bb->addBlock(x, y);
+		}
+
+		level--;
+	}
+
+	LastBlock *l = (LastBlock *)b;
+
+	auto bx = x - l->_x;
+	auto by = y - l->_y;
+
+	int p = bx + (by << B_BITS);
+
+	if (l->_block[p] == 0 || l->_block[p] == id2)
+		l->_block[p] = id;
+
+
+}
+
+
+void Map::addSetIfEmpty(long long __x, long long __y, CellID id) {
+
+	// lprint_MAP("x " + inttostr(__x) + " y " + inttostr(__y));
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
+
+	lint level = _level;
+	auto b = _root;
+	lint m = _m;
+
+
+	while (true) {
+		lint dx = b->_x + (_1 << m);
+		lint dy = b->_y + (_1 << m);
+
+		/*
+		long long x1 = b->_x - MAP_MID;
+		long long y1 = b->_y - MAP_MID;
+		if (b->_x < MAP_MID) {
+		x1 = (long long)(MAP_MID - b->_x) * -1;
+		}
+		if (b->_y < MAP_MID) {
+		y1 = (long long)(MAP_MID - b->_y) * -1;
+		}
+
+		long long x2 = dx - MAP_MID;
+		if (dx < MAP_MID) {
+		(long long)(MAP_MID - dx) * -1;
+		}
+		long long y2 = dy - MAP_MID;
+		if (dy < MAP_MID) {
+		(long long)(MAP_MID - dy) * -1;
+		}
+		lprint_MAP("check bound level " + inttostr(level) + " " + inttostr(x1) + "x" + inttostr(y1) + " " + inttostr(x2) + "x" + inttostr(y2));
+		*/
+
+		if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+			// lprint_MAP("out of bound");
+			level++;
+			_level++;
+
+			auto e = (_1 << ((B_BITS * level) - 1 + B_BITS));
+
+			_m += B_BITS;
+			m += B_BITS;
+
+			_root = new Block(level, MAP_MID - e, MAP_MID - e);
+
+			// place b at B_BITS >> 1
+			auto x1 = _1 << (B_BITS - 1);
+			_root->_block[x1 + (x1 << B_BITS)] = b;
+
+			b = _root;
+
+			continue;
+		}
+		break;
+	}
+
+	while (level > 0 && b) {
+
+		/*
+		auto bx = (x - b->_x) >> m;
+		auto by = (y - b->_y) >> m;
+
+		lprint_MAP(std::string("level ") + inttostr(level) + " bx " + inttostr(bx) + " by " + inttostr(by));
+		*/
+		auto bb = b;
+		b = b->getBlock(x, y);
+
+		if (b == NULL) {
+			b = bb->addBlock(x, y);
+		}
+
+		level--;
+	}
+
+	LastBlock *l = (LastBlock *)b;
+
+	auto bx = x - l->_x;
+	auto by = y - l->_y;
+
+	/*
+	long long x1 = x - l->_x;
+	long long y1 = y - l->_y;
+
+	if (x1 < MAP_MID) {
+	x1 = (long long)(MAP_MID - x1) * -1;
+	}
+	else {
+	x1 = x1 - MAP_MID;
+	}
+
+	if (y1 < MAP_MID) {
+	y1 = (long long)(MAP_MID - y1) * -1;
+	}
+	else {
+	y1 = y1 - MAP_MID;
+	}
+
+
+	lprint_MAP(std::string("last block ") + inttostr(l->_x - MAP_MID) + "x" + inttostr(l->_y - MAP_MID) + " " + inttostr(bx) + "x" + inttostr(by));
+	*/
+
+	int p = bx + (by << B_BITS);
+
+	if (l->_block[p] == 0)
+		l->_block[p] = id;
+
+}
+
+
+
 
 void Map::addBlock(long long __x, long long __y) {
 
@@ -479,7 +726,7 @@ void Map::addBlock(long long __x, long long __y) {
 			_root = new Block(level, MAP_MID - e, MAP_MID - e);
 
 			// place b at B_BITS >> 1
-			auto x1 = _1 << (B_BITS >> 1);
+			auto x1 = _1 << (B_BITS - 1);
 			_root->_block[x1 + (x1 << B_BITS)] = b;
 
 			b = _root;
@@ -507,5 +754,94 @@ void Map::addBlock(long long __x, long long __y) {
 		level--;
 	}
 
+}
+
+
+LastBlock *Map::getLastBlock(long long __x, long long __y, bool _add) {
+
+	if (__x < 0) {
+		__x /= 1024;
+		__x--;
+	}
+	else {
+		__x /= 1024;
+	}
+
+	if (__y < 0) {
+		__y /= 1024;
+		__y--;
+	}
+	else {
+		__y /= 1024;
+	}
+
+	lint x = (__x + MAP_MID);
+	lint y = (__y + MAP_MID);
+
+	lint level = _level;
+	auto b = _root;
+	lint m = _m;
+
+	while (true) {
+		lint dx = b->_x + (_1 << m);
+		lint dy = b->_y + (_1 << m);
+
+		if (b->_x > x || b->_y > y || dx <= x || dy <= y) {
+
+			if (!_add) {
+				return NULL;
+			}
+
+			level++;
+			_level++;
+
+			auto e = (_1 << ((B_BITS * level) - 1 + B_BITS));
+
+			_m += B_BITS;
+			m += B_BITS;
+
+			_root = new Block(level, MAP_MID - e, MAP_MID - e);
+
+			// place b at B_BITS >> 1
+			auto x1 = _1 << (B_BITS - 1);
+			_root->_block[x1 + (x1 << B_BITS)] = b;
+
+			b = _root;
+
+			continue;
+		}
+		break;
+	}
+
+	while (level > 0 && b) {
+
+		auto bb = b;
+		b = b->getBlock(x, y);
+
+		if (b == NULL) {
+			if (!_add) {
+				return NULL;
+			}
+
+			b = bb->addBlock(x, y);
+		}
+
+		level--;
+	}
+
+	return (LastBlock *)b;
+}
+
+LastBlock *Map::addID(long long __x, long long __y, lint id) {
+	LastBlock *b = getLastBlock(__x, __y, true);
+	b->addID(id);
+	return b;
+}
+
+void Map::delID(long long __x, long long __y, lint id) {
+	LastBlock *b = getLastBlock(__x, __y);
+	if (b) {
+		b->delID(id);
+	}
 }
 

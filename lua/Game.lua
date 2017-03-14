@@ -18,6 +18,8 @@ local MainMenuWindow = require("MainMenuWindow")
 local VideoMenuWindow = require("VideoMenuWindow")
 local InterfaceMenuWindow = require("InterfaceMenuWindow")
 
+local Random = require("Random")
+
 
 local Images = { }
 
@@ -36,6 +38,18 @@ end
 
 
 function Game:onStart(hwnd)
+
+	--[[
+	local r = Random:new(0)
+	local f = { }
+	for i = 1, 10000 do
+		local n = r:get(4)
+		-- lprint(n)
+		if f[n] == nil then f[n] = 0 end
+		f[n] = f[n] + 1		
+	end
+	dump(f)
+	]]
 
 	self.menuIsOpened = false
 	self.gameInProgress = false

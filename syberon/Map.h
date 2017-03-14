@@ -16,9 +16,15 @@ class LastBlock {
 private:
 
 public:
+	lint *_ids;
+	int _count, _size;
+
 	CellID *_block;
 	lint _x, _y;
 	LastBlock(lint x, lint y);
+
+	void addID(lint id);
+	void delID(lint id);
 };
 
 typedef LastBlock *PLastBlock;
@@ -55,16 +61,20 @@ class Map {
 private:
 	lint _level;
 	Block *_root;
-	lint _m;
 public:
+	lint _m;
 	Map();
 
 	CellID getCell(long long __x, long long __y);
 	void addBlock(long long __x, long long __y);
 	void setCell(long long __x, long long __y, CellID id);
 	void addSetCell(long long __x, long long __y, CellID id);
-	
-
+	void addSetIfEmpty(long long __x, long long __y, CellID id);
+	void addSetIfEmptyAndId(long long __x, long long __y, CellID id, CellID id2);
+		
+	LastBlock *getLastBlock(long long __x, long long __y, bool _add = false);
+	LastBlock *addID(long long __x, long long __y, lint id);
+	void delID(long long __x, long long __y, lint id);
 
 	void dump();
 	void trace_coords(lint x, lint y);

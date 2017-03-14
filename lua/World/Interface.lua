@@ -105,7 +105,7 @@ function Interface:onAddObject(lparam)
 		end
 		table.insert(self.objects, object)
 	else
-		eprint("error can't make IObject")
+		-- eprint("error can't make IObject")
 		-- dump(data)
 	end
 

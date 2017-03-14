@@ -34,6 +34,18 @@ function WorldObject:getCounter()
 
 end
 
+function WorldObject:_serialize(data)
+end
+
+function WorldObject:treat(rmap)
+end
+
+function WorldObject:reposition(rmap)
+end
+
+function WorldObject:delFromRenderer(r)
+end
+
 function WorldObject:serialize()
 	local data = { type = self.type, id = self.id, x = self.x, y = self.y }
 	self:_serialize(data)

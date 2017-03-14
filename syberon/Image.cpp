@@ -193,11 +193,19 @@ public:
 };
 
 Image::Image(Image *si, int m, int d) {
+	_init(si, m, d, 0, 0, si->_width, si->_height);
+}
+
+Image::Image(Image *si, int m, int d, int sx, int sy, int sw, int sh) {
+	_init(si, m, d, sx, sy, sw, sh);
+}
+
+void Image::_init(Image *si, int m, int d, int sx, int sy, int sw, int sh) {
 
 	_has_dds = false;
 
-	_width = si->_width * m / d;
-	_height = si->_height * m / d;
+	_width = sw * m / d;
+	_height = sh * m / d;
 
 	// lprint(inttostr(m) + " " + inttostr(d) + " " + inttostr(si->_width) + " " + inttostr(si->_height) + " " + inttostr(_width) + " " + inttostr(_height));
 
@@ -218,7 +226,7 @@ Image::Image(Image *si, int m, int d) {
 			*dst = *src;
 			*/
 			auto dst = &_data[(x + y * _width) * 4];
-			auto src = &si->_data[(xs.p1 + (ys.p1 * si->_width)) * 4];
+			auto src = &si->_data[(sx + xs.p1 + ((sy + ys.p1) * si->_width)) * 4];
 
 			// lprint(inttostr(x) + " " + inttostr(y) + " " + inttostr(xs.p1) + " " + inttostr(ys.p1));
 

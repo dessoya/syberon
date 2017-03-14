@@ -15,6 +15,7 @@ enum RendererState {
 
 enum RendererLayer {
 	Map = 0,
+	GroundObjects,
 	GameObjects,
 	Interface
 };

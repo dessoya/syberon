@@ -38,16 +38,21 @@ void Logger::setThreadName(const char *name) {
 		return;
 	}
 
+	auto tid = GetCurrentThreadId();
+	auto n = new std::string(name);
+
+	auto tt = new ThreadDesc;
+	tt->threadId = tid;
+	tt->next = NULL;
+	tt->name = n;
+
 	if (threadNamesLast) {
-		threadNamesLast->next = new ThreadDesc;
-		threadNamesLast = threadNamesLast->next;
+		threadNamesLast->next = tt;
+		threadNamesLast = tt;
 	}
 	else {
-		threadNames = threadNamesLast = new ThreadDesc;
+		threadNames = threadNamesLast = tt;
 	}
-	threadNamesLast->threadId = GetCurrentThreadId();
-	threadNamesLast->next = NULL;
-	threadNamesLast->name = new std::string(name);
 }
 
 Logger::Logger(std::string filepath) : _filepath (filepath) {

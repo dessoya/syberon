@@ -167,6 +167,7 @@
     <ClCompile Include="syberon\lua\ImageFont.cpp" />
     <ClCompile Include="syberon\lua\Map.cpp" />
     <ClCompile Include="syberon\lua\Music.cpp" />
+    <ClCompile Include="syberon\lua\Random.cpp" />
     <ClCompile Include="syberon\lua\Renderer.cpp" />
     <ClCompile Include="syberon\lua\Thread.cpp" />
     <ClCompile Include="syberon\lua\Timer.cpp" />

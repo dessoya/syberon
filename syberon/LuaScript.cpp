@@ -329,6 +329,15 @@ static int luaC_Exit(lua_State *L) {
 	return 0;
 }
 
+static int luaC_tointeger(lua_State *L) {
+
+	long long i = lua_tointeger(L, 1);
+	
+	lua_pushinteger(L, i);
+
+	return 1;
+}
+
 
 static int luaC_InstallPreProcessor(lua_State *L) {
 
@@ -379,6 +388,7 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 	luaL_requiref(_l, LUA_DBLIBNAME, luaopen_debug, 1);
 	lua_register(_l, "lprint", luaC_lprint);
 	lua_register(_l, "eprint", luaC_eprint);
+	lua_register(_l, "_tointeger", luaC_tointeger);
 
 	lua_register(_l, "C_ExecuteFile", luaC_executeFile);
 	lua_register(_l, "C_InstallModule", luaC_InstallModule);

@@ -84,6 +84,9 @@
     <ClCompile Include="syberon\lua\Map.cpp">
       <Filter>Файлы исходного кода\lua</Filter>
     </ClCompile>
+    <ClCompile Include="syberon\lua\Random.cpp">
+      <Filter>Файлы исходного кода\lua</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="syberon\DrawMachine.h">

@@ -137,8 +137,8 @@ void RImage::setProp(int x, int y, Image *image, int sx, int sy, int sw, int sh,
 }
 
 
-#define MAP_W 256
-#define MAP_H 192
+#define MAP_W 4096
+#define MAP_H 3000
 #define MAX_CELLS 256
 
 char *bline = NULL;
@@ -156,13 +156,13 @@ RMap::RMap(Map *map, int scales, int cells) : _worldMap(map), _scales(scales), _
 	_vwp = _vhp = _mxp = _myp = 0;
 
 	if (bline == NULL) {
-		bline = new char[4 * 256];
-		_memset(bline, 0x00000000, 256);
+		bline = new char[4 * 1024];
+		_memset(bline, 0x00000000, 1024);
 	}
 
 	if (gline == NULL) {
-		gline = new char[4 * 256];
-		_memset(gline, 0x00303030, 256);
+		gline = new char[4 * 1024];
+		_memset(gline, 0x00303030, 1024);
 	}
 	
 	_scaleInfo = new ScaleInfo[_scales];
@@ -254,14 +254,31 @@ void RMap::setCoors(long long x, long long y, bool lock) {
 	_mxp = x;
 	_myp = y;
 
-	auto s = &_scaleInfo[_curScale];
-	x = ((double)x / s->k);
-	y = ((double)y / s->k);
-	_ox = x % s->w;
-	_oy = y % s->h;
+	long long _tmx = x / 1024;;
+	long long _tmy = y / 1024;
 
-	auto _tmx = x / s->w;
-	auto _tmy = y / s->h;
+	// x += MAP_MID;
+	// y += MAP_MID;
+
+	auto s = &_scaleInfo[_curScale];
+
+	_ox = x % 1024;
+	_oy = y % 1024;
+
+	if (_ox < 0) {
+		_ox += 1024;
+		_tmx--;
+	}
+	if (_oy < 0) {
+		_oy += 1024;
+		_tmy--;
+	}
+
+	_ox = floor((double)_ox / s->k);
+	_oy = floor((double)_oy / s->k);
+
+
+	/*
 	if (_ox < 0) {
 		_ox += s->w;
 		_tmx--;
@@ -270,8 +287,11 @@ void RMap::setCoors(long long x, long long y, bool lock) {
 		_oy += s->h;
 		_tmy--;
 	}
+	*/
+
 	lprint_ROBJECT(std::string("RMap::setCoors ") + inttostr(x) + " " + inttostr(y));
 	lprint_ROBJECT(std::string("RMap::setCoors ") + inttostr(_ox) + " " + inttostr(_oy) + " " + inttostr(_tmx) + " " + inttostr(_tmy));
+
 	if (_tmx != _mx || _tmy != _my) {
 		_mx = _tmx;
 		_my = _tmy;
@@ -324,7 +344,7 @@ void RMap::draw(DrawMachine *dm) {
 			DWORD *imageLine;
 			long l3;
 
-			if (cid == 0 || cid == ABSENT_CELL) {
+			if (cid == 0 || cid == ABSENT_CELL || cid >= _cells || _images[_curScale][cid].image == NULL) {
 				_add = false;
 				if (cid) {
 					imageLine = (DWORD *)bline;

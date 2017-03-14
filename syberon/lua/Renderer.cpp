@@ -429,6 +429,8 @@ static int luaC_GUI_Image_New(lua_State *L) {
 	return 1;
 }
 
+void _lua_error(lua_State* L, char *buff);
+
 static int luaC_GUI_Image_setProp(lua_State *L) {
 
 	auto ud = (UserData *)lua_touserdata(L, 1);
@@ -438,6 +440,11 @@ static int luaC_GUI_Image_setProp(lua_State *L) {
 	auto y = lua_tointeger(L, 3);
 
 	ud = (UserData *)lua_touserdata(L, 4);
+	if (ud == NULL) {
+		_lua_error(L, "Image._ptr == NULL");
+		return 0;
+	}
+
 	auto image = (Image *)ud->data;
 
 

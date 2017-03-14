@@ -8,6 +8,10 @@ local Images = {
 	, "player-basic-run.png"
 	, "png_01\\Grass.png"
 	, "png_01\\Ground.png"
+	, "png_02\\Water_01.png"
+	, "png_02\\Mountain_01.png"
+	, "png_01\\Stone_03_grass.png"
+	
 --	, "font_v1.png"
 }
 local TestImages = { }
