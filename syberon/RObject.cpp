@@ -162,7 +162,8 @@ RMap::RMap(Map *map, int scales, int cells) : _worldMap(map), _scales(scales), _
 
 	if (gline == NULL) {
 		gline = new char[4 * 1024];
-		_memset(gline, 0x00303030, 1024);
+		// _memset(gline, 0x00303030, 1024);
+		_memset(gline, 0x00000000, 1024);
 	}
 	
 	_scaleInfo = new ScaleInfo[_scales];
@@ -329,6 +330,8 @@ void RMap::draw(DrawMachine *dm) {
 
 			// lets draw cell
 			auto cid = *c;
+			auto flags = cid >> 12;
+			cid &= 0xfff;
 
 			/*
 			0 = gline
@@ -344,7 +347,7 @@ void RMap::draw(DrawMachine *dm) {
 			DWORD *imageLine;
 			long l3;
 
-			if (cid == 0 || cid == ABSENT_CELL || cid >= _cells || _images[_curScale][cid].image == NULL) {
+			if (cid == 0 || cid == 0xfff || cid >= _cells || _images[_curScale][cid].image == NULL) {
 				_add = false;
 				if (cid) {
 					imageLine = (DWORD *)bline;
@@ -395,17 +398,49 @@ void RMap::draw(DrawMachine *dm) {
 
 			auto sLine = &p[(ty < 0 ? 0 : ty) * l + tx * 4];
 
-			for (int y1 = 0; y1 < l11; y1++) {
+			if (cid == 0 || cid == 0xfff) {
+				for (int y1 = 0; y1 < l11; y1++) {
 
-				DWORD *imageLine1 = imageLine;
-				DWORD *sLine1 = (DWORD *)sLine;
+					DWORD *imageLine1 = imageLine;
+					DWORD *sLine1 = (DWORD *)sLine;
 
-				memcpy(sLine, imageLine, l1 * 4);
+					memcpy(sLine, imageLine, l1 * 4);
 
-				if (_add) {
-					imageLine += l3;
+					sLine += l;
 				}
-				sLine += l;
+
+			}
+			else {
+				if (flags == 1) {
+					for (int y1 = 0; y1 < l11; y1++) {
+
+						DWORD *imageLine1 = imageLine;
+						DWORD *sLine1 = (DWORD *)sLine;
+
+						for (int x1 = 0; x1 < l1; x1++) {
+							DWORD p = *imageLine1;
+							p >>= 1;
+							p &= 0x7f7f7f7f;
+							*sLine1 = p;
+							sLine1++;
+							imageLine1++;
+						}
+						
+
+						imageLine += l3;
+						sLine += l;
+					}
+				}
+				else {
+					for (int y1 = 0; y1 < l11; y1++) {
+
+						memcpy(sLine, imageLine, l1 * 4);
+
+						imageLine += l3;
+						sLine += l;
+					}
+				}
+
 			}
 			c++;
 		}

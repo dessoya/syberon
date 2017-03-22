@@ -16,6 +16,9 @@
     <Filter Include="Файлы исходного кода\lua">
       <UniqueIdentifier>{60256496-1012-4771-abce-77710c02d69d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Файлы исходного кода\lua\DataStruct">
+      <UniqueIdentifier>{98d983c9-b2d2-4e42-a63b-023a7c819838}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -87,6 +90,24 @@
     <ClCompile Include="syberon\lua\Random.cpp">
       <Filter>Файлы исходного кода\lua</Filter>
     </ClCompile>
+    <ClCompile Include="syberon\lua\FileCache.cpp">
+      <Filter>Файлы исходного кода\lua</Filter>
+    </ClCompile>
+    <ClCompile Include="syberon\Pack.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="syberon\lua\Pack.cpp">
+      <Filter>Файлы исходного кода\lua</Filter>
+    </ClCompile>
+    <ClCompile Include="syberon\lua\CQueue.cpp">
+      <Filter>Файлы исходного кода\lua</Filter>
+    </ClCompile>
+    <ClCompile Include="syberon\lua\DataStruct\Array.cpp">
+      <Filter>Файлы исходного кода\lua\DataStruct</Filter>
+    </ClCompile>
+    <ClCompile Include="syberon\LuaClass.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="syberon\DrawMachine.h">
@@ -123,6 +144,12 @@
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
     <ClInclude Include="syberon\logConfig.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="syberon\Pack.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="syberon\LuaClass.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
   </ItemGroup>

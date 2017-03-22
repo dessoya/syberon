@@ -151,7 +151,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 #endif
 
 	_lprint("");
-
 	/*
 	// 0x80000000000000
 	unsigned long long i1 = 36028797018963840, i2 = ((long long)-512) + 0x80000000000000;
@@ -219,9 +218,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	UpdateWindow(hWnd);
 
 	MSG msg;
-	while (GetMessage(&msg, hWnd, 0, 0)) {
-		// TranslateMessage(&msg);
-		DispatchMessage(&msg);		
+	// while (GetMessage(&msg, hWnd, 0, 0)) {
+	while(true) {
+		while (PeekMessage(&msg, hWnd, 0, 0, PM_REMOVE)) {
+			// TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		if (coreScript->executeObjectMethod("game", "messageLoop")) {
+			lprint(coreScript->getError());
+			exit(1);
+			return 1;
+		}
+		Sleep(3);
 	}
 
 	return (int)msg.wParam;

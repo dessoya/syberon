@@ -5,7 +5,7 @@ local GUI = require("GUI")
 
 local ImageLoader = Object:extend()
 
-function ImageLoader:initialize(hwnd, messagePump, renderer, cb)
+function ImageLoader:initialize(hwnd, messagePump, renderer, useFileCache, cb)
 
 	self.renderer = renderer
 	self.cb = cb
@@ -18,7 +18,7 @@ function ImageLoader:initialize(hwnd, messagePump, renderer, cb)
 
 	messagePump:registerReciever(self)
 
-	self.thread = Thread:new("ImageLoaderThread", hwnd)
+	self.thread = Thread:new("ImageLoaderThread", hwnd, useFileCache)
 	self.thread:send(ILConst.CMD_StartLoad)
 
 end
@@ -36,11 +36,13 @@ end
 
 function ImageLoader:onImage(lparam)
 
+--[[
 	local data = C_UnpackTable(lparam)
 	local imageName = data.name
 	local image = data.image
 
 	self.images[imageName] = image
+]]
 
 	self.progressBar:inc()
 	self._imagesLoaded = self._imagesLoaded + 1
@@ -55,7 +57,7 @@ function ImageLoader:onImage(lparam)
 			self.renderer:del(self.progressBar)			
 		end)
 
-		self.cb(self.images)
+		self.cb()
 
 	end
 

@@ -3,6 +3,7 @@
 #include "..\LuaScript.h"
 #include "..\Files.h"
 
+int fontcnt = 0;
 
 static int luaC_Font_New(lua_State *L) {
 
@@ -20,8 +21,10 @@ static int luaC_Font_New(lua_State *L) {
 		bool needDelete = false;
 
 		if (Files_exists(filepath)) {
-			Files_saveFile(filepath, "font.ttf");
-			filepath = "font.ttf";
+			char buff[1024];
+			sprintf(buff, "font%d.ttf", fontcnt++);
+			Files_saveFile(filepath, buff);
+			filepath = buff;
 			needDelete = true;
 		}
 

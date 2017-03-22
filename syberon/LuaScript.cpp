@@ -4,6 +4,7 @@
 #include "Files.h"
 
 #include "lua.hpp"
+#include "LuaClass.h"
 
 #include "logConfig.h"
 
@@ -18,6 +19,166 @@
 #else
 #define lprint_LS_EXECUTE_FILE(text)
 #endif
+
+LuaArgumants::LuaArgumants(lua_State *L, int skip) {
+
+	int size = 1;
+
+	auto c = lua_gettop(L);
+
+	long long i;
+	char *s;
+	size_t sz;
+	UserData *ud;
+	LuaDataStruct *ds;
+
+	// calc size
+	int pos = 1 + skip;
+	while (pos <= c) {
+		auto t = lua_type(L, pos);
+		size++;
+		// LUA_TNIL, LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, and LUA_TLIGHTUSERDATA.
+		switch (t) {
+
+		case LUA_TBOOLEAN:
+			size++;
+			break;
+
+		case LUA_TNUMBER:
+			size += sizeof(long long);
+			break;
+
+		case LUA_TSTRING:
+			s = (char *)lua_tolstring(L, pos, &sz);
+			size += 4 + sz;
+			break;
+
+		case LUA_TUSERDATA:
+			size += sizeof(void *);
+			break;
+		}
+
+		pos++;
+	}
+
+	// fill data
+
+	_data = new unsigned char[size];
+	*_data = c - skip;
+	auto d = _data + 1;
+
+	pos = 1 + skip;
+
+	while (pos <= c) {
+
+		auto t = lua_type(L, pos);
+		// LUA_TNIL, LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, and LUA_TLIGHTUSERDATA.
+		switch (t) {
+		case LUA_TNIL:
+			*d = UDT_Nil;
+			d++;
+			break;
+
+		case LUA_TBOOLEAN:
+			*d = UDT_Bool;
+			d++;
+			*d = lua_toboolean(L, pos);
+			d++;
+			break;
+
+		case LUA_TNUMBER:
+			i = lua_tointeger(L, pos);
+			*d = UDT_Int;
+			d++;
+			*((long long *)d) = i;
+			d += sizeof(long long);
+			break;
+
+		case LUA_TSTRING:
+			*d = UDT_String;
+			d++;
+			s = (char *)lua_tolstring(L, pos, &sz);
+			*((DWORD *)d) = sz;
+			d += 4;
+			memcpy(d, s, sz);
+			d += sz;
+			break;
+
+		case LUA_TUSERDATA:
+			ud = (UserData *)lua_touserdata(L, pos);
+			*d = ud->type;
+			d++;
+			*((void **)d) = ud->data;
+			d += sizeof(void *);
+			if (ud->type == UDT_DataStruct) {
+				ds = (LuaDataStruct *)ud->data;
+				ds->_share++;
+			}
+		}
+
+		pos++;
+	}
+}
+
+int LuaArgumants::push(lua_State *L) {
+	auto d = _data;
+
+	DWORD sz;
+	long long _i;
+	bool b;
+
+	int c = *d;
+	d++;
+
+	// lprint("count " + inttostr(c));
+
+	for (int i = 0, l = c; i < l; i++) {
+		auto t = *d;
+		d++;
+		// lprint("type " + inttostr((int)t));
+		switch (t) {
+		case UDT_Nil:
+			lua_pushnil(L);
+			break;
+
+		case UDT_Bool:
+			b = *d;
+			d++;
+			lua_pushboolean(L, b);
+			break;
+		case UDT_Int:
+			_i = *((long long *)d);
+			d += sizeof(long long);
+			lua_pushinteger(L, _i);
+			break;
+		case UDT_String:
+			sz = *(DWORD *)d;
+			d += 4;
+			lua_pushlstring(L, (char *)d, sz);
+			d += sz;
+			break;
+		case UDT_CQueue:
+		case UDT_Data:
+		case UDT_Image:
+		case UDT_Renderer:
+		case UDT_TableList:
+		case UDT_Void:
+		case UDT_Map:
+		case UDT_DataStruct:
+			auto ud1 = (UserData *)lua_newuserdata(L, sizeof(UserData));
+			ud1->type = t;
+			ud1->data = *(void **)d;
+			d += sizeof(void *);
+
+			if (t == UDT_DataStruct) {
+				((LuaDataStruct *)ud1->data)->registerInNewState(L);
+			}
+		}
+	}
+	return c;
+}
+
+
 
 void _lua_error(lua_State* L, char *buff) {
 
@@ -65,13 +226,17 @@ int errorHandler(lua_State* L) {
 		(*lastError) += std::string("\n") + stackTrace;
 	}
 
-	// lprint(lastError);
+	lprint(*lastError);
 
 	return 1;
 }
 
 int _lua_print(lua_State *L, int log_file) {
 	const char *arg = lua_tostring(L, -1);
+	if (arg == NULL) {
+		return 0;
+	}
+
 	std::string p;
 
 	lua_getglobal(L, "debug");
@@ -299,26 +464,50 @@ static int luaC_PackTable(lua_State *L) {
 
 static int luaC_UnpackTable(lua_State *L) {
 
-	auto i = lua_tointeger(L, 1);
-	auto list = (DataList *)i;
+	DataList *list;
+
+	if (lua_isnumber(L, 1)) {
+		auto i = lua_tointeger(L, 1);
+		list = (DataList *)i;
+	}
+	else {
+		auto ud = (UserData *)lua_touserdata(L, 1);
+		list = (DataList *)ud->data;
+	}
+
+	/*
+	if (list->deleted) {
+		eprint("list->deleted");
+		lua_pushnil(L);
+		return 1;
+	}
+	*/
 
 	lua_newtable(L);
 
 	auto item = list->first;
 
 	while (item) {
-		std::string *k = item->get();
+		char *k = item->get();
 
 		item = item->next();
 		item->push(L);
 
 		item = item->next();
 
-		lua_setfield(L, -2, k->c_str());
+		lua_setfield(L, -2, k);
 	}
 
+	
 	delete list;
 
+	return 1;
+}
+
+static int luaC_GetData(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	lua_pushinteger(L, (long long)ud->data);
 	return 1;
 }
 
@@ -395,6 +584,8 @@ LuaScript::LuaScript() : _returnValue(NULL) {
 
 	lua_register(_l, "C_PackTable", luaC_PackTable);
 	lua_register(_l, "C_UnpackTable", luaC_UnpackTable);
+	lua_register(_l, "C_GetData", luaC_GetData);
+	
 
 	lua_register(_l, "C_Exit", luaC_Exit);
 
@@ -443,6 +634,42 @@ void LuaScript::makeReturnValue(int r) {
 	}
 }
 
+
+int LuaScript::executeFunction(std::string func, LuaArgumants *a) {
+
+	LuaStackGuard stackGuard(_l);
+
+	lua_getglobal(_l, "__error_string");
+	std::string *lastError = (std::string *)lua_touserdata(_l, -1);
+	lua_pop(_l, 1);
+
+	(*lastError) = "";
+	lua_pushcfunction(_l, errorHandler);
+
+	lua_getglobal(_l, func.c_str());
+	if (lua_isfunction(_l, -1) == 0) {
+		(*lastError) = std::string("Error: [") + _filepath + "] can't find function " + func;
+		return 1;
+	}
+
+	int params = 0, errorId = -2;
+	if (a) {
+		auto c = a->count();
+
+		params += c;
+		errorId += -1 * c;
+
+		a->push(_l);
+		delete a;
+	}
+
+
+	int r = lua_pcall(_l, params, 1, errorId);
+	makeReturnValue(r);
+
+	return r;
+
+}
 
 int LuaScript::executeFunction(std::string func, DataList *dl) {
 

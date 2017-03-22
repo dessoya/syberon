@@ -7,3 +7,9 @@ wchar_t *makewstr(const char *s) {
 	mbstowcs_s(&outSize, wbuf, size, s, size - 1);
 	return wbuf;
 }
+
+char *tchar2char(wchar_t *t) {
+	char *s = new char[wcslen(t) + 1];
+	wcstombs(s, t, wcslen(t) + 1);
+	return s;
+}

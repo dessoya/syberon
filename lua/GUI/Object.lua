@@ -46,6 +46,8 @@ function GUIObject:delFromRenderer(renderer)
 		C_Renderer_del(renderer._ptr, self._ptr, self.layer)
 	end
 
+	self:invokeMethod("onDeleteFromRenderer")
+
 	if self.childs then
 		for index, value in ipairs(self.childs) do
 			value:delFromRenderer(renderer)

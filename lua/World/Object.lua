@@ -9,6 +9,7 @@ local period = math.floor(f / 10000)
 function WorldObject:initialize(x, y)
 	self.x = x
 	self.y = y
+	self.added = false
 	self.id = idGenerator
 	self.counter = C_Timer_QueryPerformanceCounter()
 	idGenerator = idGenerator + 1
@@ -47,7 +48,7 @@ function WorldObject:delFromRenderer(r)
 end
 
 function WorldObject:serialize()
-	local data = { type = self.type, id = self.id, x = self.x, y = self.y }
+	local data = { type = self.type, id = self.id, x = self.rx, y = self.ry }
 	self:_serialize(data)
 	return data
 end

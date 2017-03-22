@@ -35,6 +35,28 @@ static int luaC_Map_set(lua_State *L) {
 	return 0;
 }
 
+static int luaC_Map_setFlags(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (WorldMap *)ud->data;
+	auto x = lua_tointeger(L, 2);
+	auto y = lua_tointeger(L, 3);
+	auto flags = lua_tointeger(L, 4);
+
+	/*
+	if (m->getCell(x, y) == ABSENT_CELL) {
+	m->addBlock(x, y);
+	}
+
+	m->setCell(x, y, id);
+	*/
+	m->addSetFlags(x, y, flags);
+
+	return 0;
+}
+
+
+
 static int luaC_Map_get(lua_State *L) {
 
 	auto ud = (UserData *)lua_touserdata(L, 1);
@@ -42,9 +64,11 @@ static int luaC_Map_get(lua_State *L) {
 	auto x = lua_tointeger(L, 2);
 	auto y = lua_tointeger(L, 3);
 
-	lua_pushinteger(L, m->getCell(x, y));
+	auto id = m->getCell(x, y);
+	lua_pushinteger(L,  id & 0x0fff);
+	lua_pushinteger(L, (id & 0xf000) >> 12);
 
-	return 1;
+	return 2;
 }
 
 
@@ -150,22 +174,75 @@ static int luaC_Map_getIDs(lua_State *L) {
 }
 	
 
+static int luaC_Map_getPointer(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (WorldMap *)ud->data;
+
+	ud = (UserData *)lua_newuserdata(L, sizeof(UserData));
+	ud->type = UDT_MapPointer;
+	ud->data = m->getPointer(lua_tointeger(L, 2), lua_tointeger(L, 3));
+
+	return 1;
+}
+
+static int luaC_MapPointer_get(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (MapPointer *)ud->data;
+
+	auto id = m->get();
+	m->move(lua_tointeger(L, 2));
+
+	lua_pushinteger(L, id & 0x0fff);
+	lua_pushinteger(L, (id & 0xf000) >> 12);
+
+	return 2;
+}
+
+static int luaC_MapPointer_move(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (MapPointer *)ud->data;
+
+	m->move(lua_tointeger(L, 2));
+
+	return 0;
+}
+
+static int luaC_MapPointer_moveTo(lua_State *L) {
+
+	auto ud = (UserData *)lua_touserdata(L, 1);
+	auto m = (MapPointer *)ud->data;
+
+	m->moveTo(lua_tointeger(L, 2), lua_tointeger(L, 3));
+
+	return 0;
+}
+
 
 
 void lm_Map_install(lua_State* _l) {
 
 	lua_register(_l, "C_Map_New", luaC_Map_New);
 	lua_register(_l, "C_Map_set", luaC_Map_set);
+	lua_register(_l, "C_Map_setFlags", luaC_Map_setFlags);
+	
 	lua_register(_l, "C_Map_get", luaC_Map_get);
 	
 	lua_register(_l, "C_Map_dump", luaC_Map_dump);
 	lua_register(_l, "C_Map_setIfEmpty", luaC_Map_setIfEmpty);
 	lua_register(_l, "C_Map_setIfEmptyAndId", luaC_Map_setIfEmptyAndId);
-	
-	
+		
 	lua_register(_l, "C_Map_addID", luaC_Map_addID);
 	lua_register(_l, "C_Map_delID", luaC_Map_delID);
 	lua_register(_l, "C_Map_getIDs", luaC_Map_getIDs);
+
+	lua_register(_l, "C_Map_getPointer", luaC_Map_getPointer);
+	lua_register(_l, "C_MapPointer_get", luaC_MapPointer_get);
+	lua_register(_l, "C_MapPointer_move", luaC_MapPointer_move);
+	lua_register(_l, "C_MapPointer_moveTo", luaC_MapPointer_moveTo);
+	
 }
 
 LuaModule *lm_Map = new LuaModule("map", lm_Map_install);

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <boost/thread/mutex.hpp>
+
 
 #define FT_NONE 0
 #define FT_MEMORY 1
@@ -9,6 +11,11 @@
 class File {
 
 public:
+
+	boost::mutex *_mutex;
+
+	void lock() { if(_mutex)_mutex->lock(); }
+	void unlock() { if (_mutex)_mutex->unlock();  }
 
 	std::string _filename;
 
@@ -21,7 +28,7 @@ public:
 	long _len;
 	int _type;
 
-	File(std::string filename) : _type(FT_NONE), _filename(filename), _data(NULL), _len(0) { }
+	File(std::string filename) : _mutex(NULL), _type(FT_NONE), _filename(filename), _data(NULL), _len(0) { }
 
 	void setData(char *d, long l) { _data = d; _len = l; _type = FT_MEMORY; }
 

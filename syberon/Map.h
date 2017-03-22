@@ -1,10 +1,11 @@
 #pragma once
 #include <string>
+#include <boost/thread/mutex.hpp>
 
 typedef unsigned long long lint;
 typedef unsigned short int CellID;
-#define ABSENT_CELL 0xffff
-#define MAP_MID 0x800000000000000
+#define ABSENT_CELL 0x0fff
+#define MAP_MID 0x8000000000000
 // #define MAP_MID 4096
 // #define MAP_MID 0x1000
 
@@ -41,12 +42,17 @@ class Block {
 private:
 	lint _level;
 	lint _m;
+	boost::mutex _mutex;
+
 public:
 	lint _x, _y;
 	union {
 		PBlock *_block;
 		PLastBlock *_lblock;
 	};
+
+	void lock() { _mutex.lock(); }
+	void unlock() { _mutex.unlock(); }
 
 	Block(lint level, lint x, lint y);
 
@@ -56,23 +62,46 @@ public:
 	void dump(std::string *l = NULL);
 };
 
+class Map;
+
+class MapPointer {
+public:
+	LastBlock *_l;
+	long long _x, _y;
+	int _xo, _yo, _p;
+	Map *_m;
+
+	MapPointer(Map *m, long long __x, long long __y);
+	CellID get();
+	void move(int dir);
+	void moveTo(long long __x, long long __y);
+};
 
 class Map {
 private:
+	boost::mutex _mutex;
 	lint _level;
 	Block *_root;
 public:
 	lint _m;
 	Map();
 
+	MapPointer *getPointer(long long __x, long long __y);
+
 	CellID getCell(long long __x, long long __y);
 	void addBlock(long long __x, long long __y);
 	void setCell(long long __x, long long __y, CellID id);
+
 	void addSetCell(long long __x, long long __y, CellID id);
+	void addSetFlags(long long __x, long long __y, CellID flags);
+	
+
 	void addSetIfEmpty(long long __x, long long __y, CellID id);
 	void addSetIfEmptyAndId(long long __x, long long __y, CellID id, CellID id2);
 		
 	LastBlock *getLastBlock(long long __x, long long __y, bool _add = false);
+	LastBlock *_getLastBlock(long long __x, long long __y, bool _add);
+
 	LastBlock *addID(long long __x, long long __y, lint id);
 	void delID(long long __x, long long __y, lint id);
 

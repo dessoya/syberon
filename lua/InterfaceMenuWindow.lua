@@ -22,8 +22,20 @@ function InterfaceMenuWindow:initialize(renderer, hwnd, optionFile, back_cb)
 
 	end))
 
+	self.fileCache = self.window:addChild(GUI.CheckBox:new(10, 45, "Use file cache", function(state)
+
+		local g = self.optionFile:getGroup("interface")
+		g.useFileCache = state
+		self.optionFile:setGroup("interface", g)
+		self.optionFile:save()
+
+		C_Thread_PostMessage(hwnd, Const.CMD_UpdateOptions, Const.Options.Interface, C_PackTable(g))
+
+	end))
+
 	local g = self.optionFile:getGroup("interface")
 	self.centerCamera:setCheckState(g.centerCamera)
+	self.fileCache:setCheckState(g.useFileCache)
 
 	self.window:addChild(GUI.Button:new(10, 565, 330, 25, "Back", back_cb))
 	

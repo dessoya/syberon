@@ -104,19 +104,19 @@ void Logger::print(const char *string) {
 		int bl1 = strlen(buffer);
 
 		if (td) {
-			if (td->name->length() > 14) {
-				sprintf(sb, "[%-14s] ", td->name->c_str());
+			if (td->name->length() > 18) {
+				sprintf(sb, "[%-18s] ", td->name->c_str());
 				fwrite(buffer, bl1, 1, _file);
 				fwrite(sb, strlen(sb), 1, _file);
 				fwrite("\n", 1, 1, _file);
-				sprintf(sb, "[%14d] ", (int)id);
+				sprintf(sb, "[%18d] ", (int)id);
 			}
 			else {
-				sprintf(sb, "[%-14s] ", td->name->c_str());
+				sprintf(sb, "[%-18s] ", td->name->c_str());
 			}
 		}
 		else {
-			sprintf(sb, "[%14d] ", (int)id);
+			sprintf(sb, "[%18d] ", (int)id);
 		}
 
 		int bl2 = strlen(sb);

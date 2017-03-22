@@ -288,6 +288,8 @@ void DrawMachine::DrawImage(Image *image, int x, int y, int fromx, int fromy, in
 		rcRect.bottom = image->_height;
 	}
 
+	// boost::unique_lock<boost::mutex> scoped_lock(image->_propMutex);
+
 	_dds->BltFast(x, y, image->_dds, &rcRect, DDBLTFAST_SRCCOLORKEY);
 
 }

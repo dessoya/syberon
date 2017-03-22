@@ -9,4 +9,4 @@ typedef unsigned long long _uint;
 #define inttostr(a) boost::lexical_cast<std::string>(a)
 
 wchar_t *makewstr(const char *s);
-
+char *tchar2char(wchar_t *t);

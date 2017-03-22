@@ -1,3 +1,6 @@
+#include KeyCodes
+
+C_InstallModule("ds_array")
 C_InstallModule("imagefont")
 
 local Object = require("Object")
@@ -10,8 +13,9 @@ local WindowsConst = require("Windows\\Const")
 local OptionFile = require("OptionFile")
 local MessagePump = require("MessagePump")
 
-local ImageLoader = require("ImageLoaderHost")
+local ImageLoader = require("ImageLoader\\Host")
 local World = require("World\\Host")
+
 local Keys = require("Keys")
 
 local MainMenuWindow = require("MainMenuWindow")
@@ -21,9 +25,11 @@ local InterfaceMenuWindow = require("InterfaceMenuWindow")
 local Random = require("Random")
 
 
-local Images = { }
-
 local Game = Object:extend()
+
+function Array:info()
+	lprint("Array:info " .. self:size())
+end
 
 function Game:initialize()
 
@@ -33,9 +39,32 @@ function Game:initialize()
 		[WindowsConst.WM.R_EnableFullscreen]	= "onEnableFullscreen",
 	})
 
+	local a = Array:new()
+	a:info()
+
 end
 
 
+--[[
+function Game:onStart(hwnd)
+	self.hwnd = hwnd
+
+	local Thread = require("Thread\\Host")
+	local cqueue = C_CQueue_new()
+	local t = Thread:new("Test", cqueue, "World")
+
+	local a, b = C_CQueue_get(cqueue)
+	lprint("data from child")
+	lprint("" .. a)
+	lprint("" .. b)
+	t:send("message",234,345)
+	C_Timer_Sleep(5000)
+	t:send("quit")
+	C_Timer_Sleep(5)
+
+	C_Thread_PostMessage(self.hwnd, WindowsConst.WM.Destroy)
+end
+]]
 
 function Game:onStart(hwnd)
 
@@ -50,6 +79,8 @@ function Game:onStart(hwnd)
 	end
 	dump(f)
 	]]
+
+	self.cqueue = C_CQueue_new()
 
 	self.menuIsOpened = false
 	self.gameInProgress = false
@@ -92,24 +123,23 @@ function Game:onStart(hwnd)
 		self.ftText = self.renderer:add(GUI.Text:new(10, 30, "Frame time: ", GUI.Fonts.basic, 255, 255, 255))		
 	end)
 
-	
-	self.imageLoader = ImageLoader:new(hwnd, self.messagePump, self.renderer, function(images)
-		
-		for name, image in pairs(images) do
-			Images[name] = image
-		end
 
+	self.imageLoader = ImageLoader:new(self.cqueue, self.messagePump, self.renderer, self.optionFile:getGroup("interface").useFileCache, function()
+		
 		self.imageLoader = nil
 
 		self:onLoadResource()
+
+		-- C_Thread_PostMessage(self.hwnd, WindowsConst.WM.Destroy)
+
+		self.world = World:new(self.cqueue, self.messagePump, Images, hwnd, self.renderer._ptr, self.optionFile)
 
 		self.renderer:modify(function()
 			self:openMainMenu()
 		end)
 
 	end)
-
-	self.world = World:new(self.messagePump, Images, hwnd, self.renderer._ptr, self.optionFile)
+	
 
 end
 
@@ -121,10 +151,11 @@ function Game:checkKeysOptions()
 	end
 
 	local default = {
-		up = Keys.Codes.W,
-		down = Keys.Codes.S,
-		left = Keys.Codes.A,
-		right = Keys.Codes.D
+		up 		= #Key_W,
+		down 	= #Key_S,
+		left 	= #Key_A,
+		right 	= #Key_D,
+		map 	= #Key_M
 	}
 
 	for name, code in pairs(default) do
@@ -144,7 +175,8 @@ function Game:checkInterfaceOptions()
 	end
 
 	local default = {
-		centerCamera = false
+		centerCamera = false,
+		useFileCache = true
 	}
 
 	for name, code in pairs(default) do
@@ -179,13 +211,13 @@ function Game:checkVideoOptions()
 end
 
 function Game:keyPressed(key, alt)
-	if key == Keys.Codes.F4 and alt then
+	if key == #Key_F4 and alt then
 		C_Thread_PostMessage(self.hwnd, WindowsConst.WM.Destroy)
 	end
 end
 
 function Game:keyUnPressed(key, alt)
-	if key == Keys.Codes.Esc then
+	if key == #Key_Esc then
 
 		if self.menuIsOpened == false and self.mainMenu == nil then
 
@@ -227,10 +259,10 @@ function Game:keyUnPressed(key, alt)
 end
 
 function Game:onLoadResource()
-	-- Images["controls.png"]
-	GUI.CheckBox.init(Images["controls.png"])
-	GUI.RadioBox.init(Images["controls.png"])
 
+	GUI.CheckBox.init(C_Image_get("controls.png"))
+	GUI.RadioBox.init(C_Image_get("controls.png"))
+	
 end
 
 function Game:openMainMenu()
@@ -333,10 +365,7 @@ end
 
 function Game:onRecreateSurface()
 
-	-- lprint("recreate surfaces")
-	for name, image in pairs(Images) do
-		C_Image_Restore(image)
-	end
+	C_Image_RestoreAll()
 
 end
 
@@ -368,6 +397,13 @@ function Game:onEnableFullscreen()
 		self.videoMenu:updateVideoOptions(g)
 	end
 
+end
+
+function Game:messageLoop()
+	while not C_CQueue_empty(self.cqueue) do
+		local message, lparam, wparam = C_CQueue_get(self.cqueue)
+		self.messagePump:onWindowMessage(message, lparam, 0, 0, wparam)
+	end
 end
 
 function Game:_onWindowMessage(message, lparam, lparam1, lparam2, wparam, w1)

@@ -35,16 +35,26 @@ FileSet fileSet;
 unsigned char *psig = (unsigned char *)"CoOoLLL pROt3Cti0n !!11";
 int psig_pos = 0;
 
-void _encode(char *b, int l) {
+void _encode(char *b, int l, int pos = -1) {
 	unsigned char *bb = (unsigned char *)b;
 
+	bool setBack = true;
+	if (pos != -1) {
+		setBack = false;
+	}
+	else {
+		pos = psig_pos;
+	}
 	while (l--) {
-		*bb ^= psig[psig_pos];
-		psig_pos++;
-		if (psig_pos >= strlen((char *)psig)) {
-			psig_pos = 0;
+		*bb ^= psig[pos];
+		pos++;
+		if (pos >= strlen((char *)psig)) {
+			pos = 0;
 		}
 		bb++;
+	}
+	if (setBack) {
+		psig_pos = pos;
 	}
 }
 
@@ -54,6 +64,9 @@ int Files_openPack(const char *filename) {
 
 	char b[256];
 	int cnt = 0;
+
+	boost::mutex *_mutex = new boost::mutex;
+
 	while (true) {
 		fread(&b, 1, 1, f);
 		_encode(b, 1);
@@ -80,6 +93,7 @@ int Files_openPack(const char *filename) {
 		sz = ftell(f);
 
 		File *ff = new File(fn);
+		ff->_mutex = _mutex;
 
 		ff->f = f;
 		ff->_type = FT_FILE;
@@ -97,20 +111,30 @@ int Files_openPack(const char *filename) {
 
 }
 
+boost::mutex _fileSetMutex;
+
 bool Files_exists(const char *filename) {
+
+	// lprint(filename + " before lock");
+	boost::unique_lock<boost::mutex> scoped_lock(_fileSetMutex);
+	// lprint(filename + " after lock");
 
 	auto it = fileSet.find(new File(std::string(filename)));
 
 	if (it == fileSet.end()) {
 		lprint_FILES(filename + " false");
+		// lprint(filename + " false");
 		return false;
 	}
 	lprint_FILES(filename + " true");
+	// lprint(filename + " true");
 
 	return true;
 }
 
 File *Files_getInfo(const char *filename) {
+
+	boost::unique_lock<boost::mutex> scoped_lock(_fileSetMutex);
 
 	auto it = fileSet.find(new File(std::string(filename)));
 
@@ -135,13 +159,15 @@ bool Files_saveFile(const char *filename, const char *dfilename) {
 	long l = f->_len;
 	lprint("Files_saveFile " + std::string(filename) + " " + inttostr(l) + " " + inttostr(f->fpos));
 	char *data = new char[l];
+	f->lock();
 	fseek(f->f, f->fpos, SEEK_SET);
 	fread(data, l, 1, f->f);
+	f->unlock();
 
 	if (f->fflags & FL_ENCODED) {
 		lprint("encode");
 		psig_pos = f->cnt % strlen((char *)psig);
-		_encode(data, l);
+		_encode(data, l, psig_pos);
 	}
 
 	if (f->fflags & FL_PACK) {
@@ -161,6 +187,7 @@ bool Files_saveFile(const char *filename, const char *dfilename) {
 	fwrite(data, l, 1, ff);
 	fclose(ff);	
 	delete data;
+
 	
 	return true;
 }

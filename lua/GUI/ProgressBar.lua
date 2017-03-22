@@ -7,7 +7,7 @@ local Timer = require("Timer")
 
 local ProgressBar = Object:extend()
 
-function ProgressBar:initialize(caption, count)
+function ProgressBar:initialize(caption, count, skipTimer)
 
 	self.x = 0
 	self.y = 0
@@ -21,21 +21,25 @@ function ProgressBar:initialize(caption, count)
 
 	self.caption = caption
 	self.id = "progressbar " .. self:getIDFor("progressbar")
-	self.stage = 0
-
-	self.timer = Timer:new(15, function()
-
-		if self.stage > 90 then
-			self.stage = -1
-			self.timer:kill()
-		else
-			self.stage = self.stage + 1		
-		end
-		self:updateYOffset()
-		self:updateProp()
-	end)
 
 	self.p = 0
+
+	if not skipTimer then
+		self.stage = 0
+		self.timer = Timer:new(15, function()
+
+			if self.stage > 90 then
+				self.stage = -1
+				self.timer:kill()
+			else
+				self.stage = self.stage + 1		
+			end
+			self:updateYOffset()
+			self:updateProp()
+		end)
+	else
+		self.stage = -1
+	end
 
 	self.box = self:addChild(Box:new(self.x, self.y, self.w, self.h, 255,255,255))
 	self.rect = self:addChild(Rect:new(self.x + 3, self.y + 3, 1, self.h - 6, 255,255,255))
@@ -92,6 +96,12 @@ function ProgressBar:inc()
 	self.text.text = self.caption .. " " .. math.ceil(self.p) .. "%"
 	self.text:setProp()
 
+end
+
+function ProgressBar:setCaption(caption)
+	self.caption = caption
+	self.text.text = self.caption .. " " .. math.ceil(self.p) .. "%"
+	self.text:setProp()
 end
 
 return ProgressBar 

@@ -26,7 +26,7 @@ function CheckBox:initialize(x, y, caption, cb)
 	self.image = self:addChild(Image:new(x - 11, y, image, 11, 0, 30, 27, true))
 	self:setCheckState(false)
 
-	self.caption = self:addChild(Text:new(x + 37, y + 3, caption, Fonts.basic, 255, 255, 255))
+	self.caption = self:addChild(Text:new(x + 37, y + 6, caption, Fonts.basic, 255, 255, 255))
 end
 
 function CheckBox:onParentChangePosition(parent)
@@ -35,7 +35,7 @@ function CheckBox:onParentChangePosition(parent)
 	self.y = parent.y + self.by
 
 	self.caption.x = self.x + 37
-	self.caption.y = self.y + 3
+	self.caption.y = self.y + 6
 	self.caption:setProp()
 
 	self:setCheckState(self.CheckBox_state)

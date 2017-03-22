@@ -102,7 +102,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\zh\sdk\public\steam;D:\zh\libogg-1.3.2\include;D:\zh\libvorbis-1.3.5\include;D:\zh\lpng1628;D:\zh\lua-5.1\src;D:\zh\boost_1_55_0;D:\zh\LuaJIT-2.0.4\src;D:\zh\zlib-1.2.11</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\zh\sdk\public\steam;D:\zh\libogg-1.3.2\include;D:\zh\libvorbis-1.3.5\include;D:\zh\lpng1628;D:\zh\boost_1_55_0;D:\zh\LuaJIT-2.0.4\src;D:\zh\zlib-1.2.11</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <ExceptionHandling>false</ExceptionHandling>
       <AdditionalOptions>/EHa %(AdditionalOptions)</AdditionalOptions>
@@ -159,19 +159,25 @@
     <ClCompile Include="syberon\Image.cpp" />
     <ClCompile Include="syberon\ImageFont.cpp" />
     <ClCompile Include="syberon\Logger.cpp" />
+    <ClCompile Include="syberon\LuaClass.cpp" />
     <ClCompile Include="syberon\LuaScript.cpp" />
+    <ClCompile Include="syberon\lua\CQueue.cpp" />
     <ClCompile Include="syberon\lua\Cursor.cpp" />
+    <ClCompile Include="syberon\lua\DataStruct\Array.cpp" />
     <ClCompile Include="syberon\lua\File.cpp" />
+    <ClCompile Include="syberon\lua\FileCache.cpp" />
     <ClCompile Include="syberon\lua\Font.cpp" />
     <ClCompile Include="syberon\lua\Image.cpp" />
     <ClCompile Include="syberon\lua\ImageFont.cpp" />
     <ClCompile Include="syberon\lua\Map.cpp" />
     <ClCompile Include="syberon\lua\Music.cpp" />
+    <ClCompile Include="syberon\lua\Pack.cpp" />
     <ClCompile Include="syberon\lua\Random.cpp" />
     <ClCompile Include="syberon\lua\Renderer.cpp" />
     <ClCompile Include="syberon\lua\Thread.cpp" />
     <ClCompile Include="syberon\lua\Timer.cpp" />
     <ClCompile Include="syberon\Map.cpp" />
+    <ClCompile Include="syberon\Pack.cpp" />
     <ClCompile Include="syberon\PeriodCorrector.cpp" />
     <ClCompile Include="syberon\Renderer.cpp" />
     <ClCompile Include="syberon\RObject.cpp" />
@@ -184,8 +190,10 @@
     <ClInclude Include="syberon\ImageFont.h" />
     <ClInclude Include="syberon\logConfig.h" />
     <ClInclude Include="syberon\Logger.h" />
+    <ClInclude Include="syberon\LuaClass.h" />
     <ClInclude Include="syberon\LuaScript.h" />
     <ClInclude Include="syberon\Map.h" />
+    <ClInclude Include="syberon\Pack.h" />
     <ClInclude Include="syberon\PeriodCorrector.h" />
     <ClInclude Include="syberon\Renderer.h" />
     <ClInclude Include="syberon\RObject.h" />

@@ -5,24 +5,33 @@ local GUIConst = require("GUI\\Const")
 local Stone = Object:extend()
 local images = { }
 local psizes = { }
-local scale = require("scale")
+
+local scale, scaleK, curScale = 0, 0, { }
+
+function Stone._setScale(_scale, _scaleK)
+	scale = _scale + 1
+	scaleK = _scaleK
+	curScale._1 = psizes._1[scale]
+end
 
 function Stone.init(image)
+
+	local scale = require("scale")
 
 	images._1 = { }	
 	psizes._1 = { }
 
-	C_Image_disableDDS(image)
-
 	for i = 1, scale.count do
 		local s = scale.d[i]
 
-		images._1[i] = C_Image_scale(image, s[1], s[2])
+		images._1[i] = C_Image_get("png_01\\Stone_03_grass.png_" .. i)
 		psizes._1[i] = {
-			_tointeger(21  * s[1] / s[2]),
-			_tointeger(80  * s[1] / s[2]),
-			_tointeger(161 * s[1] / s[2]),
-			_tointeger(96  * s[1] / s[2])
+			x   = _tointeger(21  * s[1] / s[2]),
+			y   = _tointeger(80  * s[1] / s[2]),
+			w   = _tointeger(161 * s[1] / s[2]),
+			h   = _tointeger(96  * s[1] / s[2]),
+			w_2 = _tointeger(161 * s[1] / s[2] / 2),
+			h_2 = _tointeger(96  * s[1] / s[2] / 2)
 		}
 		
 	end
@@ -30,54 +39,57 @@ function Stone.init(image)
 end
 
 function Stone:initialize(x, y)
-
 	Object.initialize(self, x, y)
-
 	self.type = "stone"
+	self.variant = 1
+	self.stoneVariant = "_1"
+end
 
-	self.added = false
+function Stone:getViewCoords(rmap, p)
 
+	local x = _tointeger( self.x / scaleK ) - _tointeger( rmap.x / scaleK ) - p.w_2
+	local y = _tointeger( self.y / scaleK ) - _tointeger( rmap.y / scaleK ) - p.h_2
+
+	return x, y
 end
 
 function Stone:addToRenderer(renderer, rmap)
 	
 	-- lprint("Stone:addToRenderer")
-
-	local k = rmap:getScaleK()
-	local s = rmap.scale + 1
-	local p = psizes._1[s]
-
-	local x = _tointeger( _tointeger( self.x / k ) - _tointeger( rmap.x / k ) ) - _tointeger( p[3] / 2 )
-	local y = _tointeger( _tointeger( self.y / k ) - _tointeger( rmap.y / k ) ) - _tointeger( p[4] / 2 )
+	local p = curScale[self.stoneVariant]
+	local x, y = self:getViewCoords(rmap, p)
 
 	if self.image == nil then
 	
 		self.image = Image:new(
 			x,
 			y,
-			images._1[s],
+			images[self.stoneVariant][scale],
 
-			_tointeger(p[1]), 
-			_tointeger(p[2]),
+			_tointeger(p.x), 
+			_tointeger(p.y),
 
-			_tointeger(p[3]),
-			_tointeger(p[4]),
+			_tointeger(p.w),
+			_tointeger(p.h),
 
 			true
 		)
 
 	else
 
-		self.image.image = images._1[s]
+		self.image.image = images[self.stoneVariant][scale]
 		self.image.x  = x
 		self.image.y  = y
-		self.image.sx = _tointeger(p[1])
-		self.image.sy = _tointeger(p[2])
-		self.image.sw = _tointeger(p[3])
-		self.image.sh = _tointeger(p[4])
+		self.image.sx = p.x
+		self.image.sy = p.y
+		self.image.sw = p.w
+		self.image.sh = p.h
 		self.image:setProp()
 
 	end
+
+	self.rx = x + p.w_2
+	self.ry = y + p.h_2
 
 	-- self:afterChangeCoords()
 	renderer:modify(function()
@@ -88,35 +100,36 @@ function Stone:addToRenderer(renderer, rmap)
 
 end
 
-function Stone:setScale(scale, scaleK)
--- function Player:afterChangeScale(rmap)
+function Stone:setScale()
 
-	local s = scale + 1
-	local p = psizes._1[s]
+	local p = curScale[self.stoneVariant]
 
 	if self.image ~= nil then
 
-		self.image.image = images._1[s]
-		self.image.sx = _tointeger(p[1])
-		self.image.sy = _tointeger(p[2])
-		self.image.sw = _tointeger(p[3])
-		self.image.sh = _tointeger(p[4])
+		self.image.image = images[self.stoneVariant][scale]
+		self.image.sx = p.x
+		self.image.sy = p.y
+		self.image.sw = p.w
+		self.image.sh = p.h
 		self.image:setProp()
 		
 	end
 
-	self.w_2 = _tointeger(p[3] / 2)
-	self.h_2 = _tointeger(p[4] / 2)
+	self.w_2 = p.w_2
+	self.h_2 = p.w_2
 
 end
 
-function Stone:reposition(rmap, scale, scaleK)
+function Stone:reposition(rmap)
 
-	local s = scale + 1
-	local p = psizes._1[s]
+	local p = curScale[self.stoneVariant]
+	local x, y = self:getViewCoords(rmap, p)
 
-	self.image.x = _tointeger( ( _tointeger( self.x / scaleK ) - _tointeger( rmap.x / scaleK ) ) ) - _tointeger( p[3] / 2 )
-	self.image.y = _tointeger( ( _tointeger( self.y / scaleK ) - _tointeger( rmap.y / scaleK ) ) ) - _tointeger( p[4] / 2 )
+	self.rx = x + p.w_2
+	self.ry = y + p.h_2
+
+	self.image.x = x
+	self.image.y = y
 
 	self.image:setProp()
 end
@@ -124,9 +137,17 @@ end
 function Stone:delFromRenderer(r)
 	-- lprint("Stone:delFromRenderer")
 	self.added = false
+	self.rx = nil
+	self.ry = nil
 	self.image:delFromRenderer(r)
 end
 
+function Stone:_serialize(data)
+	data.variant = self.variant
+end
+
+function Stone:update(data, rmap, renderer)
+end
 
 
 return Stone

@@ -18,15 +18,18 @@ function Renderer:initialize(hwnd, pump, _ptr)
 			[WindowsConst.WM.MouseMove]		= "onMouseMove",
 			[WindowsConst.WM.LButtonDown]	= "onLButtonDown",
 			[WindowsConst.WM.LButtonUp]		= "onLButtonUp",
-			[WindowsConst.WM.Active]		= "onWindowActive"
+			[WindowsConst.WM.Active]		= "onWindowActive",
+			[WindowsConst.WM.MouseWheel]	= "onMouseWheel"
 		})
 		pump:registerReciever(self)
 	end
 
 	if _ptr ~= nil then
 		self._ptr = _ptr
+		self.fromPtr = true
 	else
 		self._ptr = C_Renderer_New(hwnd)
+		self.fromPtr = false
 	end
 
 end
@@ -177,9 +180,15 @@ function Renderer:onLButtonUp()
 	self:invokeChilds("onLButtonUp")
 end
 
+function Renderer:onMouseWheel(w)
+	self:invokeChilds("onMouseWheel", w)
+end
+
 
 function Renderer:onWindowMessage(message, lparam, lparam1, lparam2, wparam)
-	return C_Renderer_onWindowMessage(self._ptr, message, lparam, wparam)
+	if not self.fromPtr then
+		return C_Renderer_onWindowMessage(self._ptr, message, lparam, wparam)
+	end	
 end
 
 

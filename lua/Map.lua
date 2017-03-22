@@ -1,13 +1,33 @@
 C_InstallModule("map")
 
+#const MOVE_RIGHT 1
+
 local Object = require("Object")
+
+local MapPointer = Object:extend()
+
+function MapPointer:initialize(_ptr)
+	self._ptr = _ptr
+end
+
+function MapPointer:get(dir)
+	return C_MapPointer_get(self._ptr, dir)
+end
+
+function MapPointer:move(dir)
+	C_MapPointer_move(self._ptr, dir)
+end
 
 local Map = Object:extend()
 
-function Map:initialize()
+function Map:initialize(_ptr)
 	self.x = 0
 	self.y = 0
-	self._ptr = C_Map_New()
+	if _ptr == nil then
+		self._ptr = C_Map_New()
+	else
+		self._ptr = _ptr
+	end
 end
 
 function Map:addID(x, y, id)
@@ -25,6 +45,11 @@ end
 function Map:set(x, y, id)
 	C_Map_set(self._ptr, x, y, id)
 end
+
+function Map:setFlags(x, y, flags)
+	C_Map_setFlags(self._ptr, x, y, flags)
+end
+
 
 function Map:get(x, y)
 	return C_Map_get(self._ptr, x, y)
@@ -169,6 +194,22 @@ function Map:makeCircle(x, y, m, n, r, id, ifEmpty, id2)
 	local step = circle / steps / 2
 	local axis = 0
 	local y1 = nil
+	local func
+
+	if type(id) == "function" then
+		func = id
+	else
+		if ifEmpty then
+			func = function(map, x, y)
+				map:setIfEmpty(x, y, id)
+			end
+		else
+			func = function(map, x, y)
+				map:setIfEmptyAndId(x, y, id, id2)
+			end
+		end
+	end
+
 	for i = 1, steps do
 
 		axis = axis + step
@@ -189,11 +230,7 @@ function Map:makeCircle(x, y, m, n, r, id, ifEmpty, id2)
 			local y2 = y1 + y
 			for j = x1 + x, x2 + x do
 
-				if ifEmpty then
-					self:setIfEmpty(j, y2, id)
-				else
-					self:setIfEmptyAndId(j, y2, id, id2)
-				end
+				func(self, j, y2)
 
 			end
 		end
@@ -444,6 +481,10 @@ function Map:makeMountain(r, x, y, id)
 		end
 	})
 
+end
+
+function Map:getPointer(x, y)
+	return MapPointer:new(C_Map_getPointer(self._ptr, x, y))	
 end
 
 

@@ -616,7 +616,9 @@ DWORD Renderer::threadProc() {
 
 
 						for (int i = 0; i < this->_backSurfaceCount; i++) {
-							this->_dds_Back[i]->Release();
+							if (_dds_Back[i]) {
+								_dds_Back[i]->Release();
+							}
 						}
 
 						this->_width = this->_new_width;
@@ -731,6 +733,7 @@ void Renderer::checkSurfaces() {
 using namespace boost::chrono;
 
 void Renderer::lockObjectList() {
+	/*
 	system_clock::time_point time_limit = system_clock::now() + seconds(1);
 	if (_robjectMutex.try_lock_until(time_limit)) {
 
@@ -738,6 +741,8 @@ void Renderer::lockObjectList() {
 	else {
 		eprint("Error _robjectMutex.try_lock_until");
 	}
+	*/
+	_robjectMutex.lock();
 }
 
 void Renderer::unlockObjectList() {

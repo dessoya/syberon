@@ -1,3 +1,5 @@
+#include KeyCodes
+
 local Object = require("Object")
 local WindowsConst = require("Windows\\Const")
 
@@ -7,7 +9,7 @@ function Keys:initialize()
 
 	self.recievers = { }
 	self.keyStates = { }
-	for i = 1, 256 do
+	for i = 1, 255 do
 		self.keyStates[i] = false
 	end
 
@@ -53,20 +55,20 @@ function Keys:onKeyUp(lparam, l1, l2, wparam)
 end
 
 function Keys:onWindowActive()
-	self.keyStates[18] = false
+	self.keyStates[#Key_Alt] = false
 end
 
 function Keys:keyDown(key)
 	if not self.keyStates[key] then
 		self.keyStates[key] = true
-		self:keyPressed(key, self.keyStates[18])
+		self:keyPressed(key, self.keyStates[#Key_Alt])
 	end
 end
 
 function Keys:keyUp(key)
 	if self.keyStates[key] then
 		self.keyStates[key] = false
-		self:keyUnPressed(key, self.keyStates[18])
+		self:keyUnPressed(key, self.keyStates[#Key_Alt])
 	end
 end
 
@@ -83,15 +85,5 @@ function Keys:keyUnPressed(key, alt)
 		r:keyUnPressed(key, alt)
 	end
 end
-
-Keys.Codes = {
-	Alt = 18,
-	Esc = 0x1b,
-	F4 = 0x73,
-	W = 0x57,
-	S = 0x53,
-	A = 0x41,
-	D = 0x44
-}
 
 return Keys
